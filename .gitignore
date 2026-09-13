@@ -29,7 +29,9 @@ dist-ssr
 !.env.example
 
 # Legacy / Temporary Backend Files
-data/
+/data/
+public/data/
+!src/data/
 uploads/
 test_upload*.js
 
