@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -15,18 +13,9 @@ export default function AdminLogin() {
     setError('');
     setIsLoading(true);
 
-    try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      navigate('/admin');
-    } catch (err: any) {
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('Invalid login credentials.');
-      } else {
-        setError(`Error: ${err.message || err.code || 'Unknown error'}`);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    // TEMPORARY — BACKEND NOT IMPLEMENTED
+    navigate('/admin');
+    setIsLoading(false);
   };
 
   return (

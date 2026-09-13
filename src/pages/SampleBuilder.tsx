@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
 export default function SampleBuilder() {
   const [step, setStep] = useState(1);
@@ -26,16 +27,7 @@ export default function SampleBuilder() {
         <div className="ambient-blob blob-2" style={{ top: '10%' }}></div>
       </div>
       
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-container-max rounded-xl z-50 bg-white/40 backdrop-blur-[40px] border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-        <div className="flex justify-between items-center px-8 py-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-primary">Parallax</span>
-          </Link>
-          <Link to="/marketplace" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">close</span> Exit Builder
-          </Link>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="flex-grow pt-32 pb-24 flex items-center justify-center">
         <div className="w-full max-w-3xl mx-auto px-margin-mobile md:px-margin-desktop">

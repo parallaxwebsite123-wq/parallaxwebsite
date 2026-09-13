@@ -17,6 +17,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminLogin from './pages/AdminLogin';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
+import CapabilityDetail from './pages/CapabilityDetail';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Navigate to="/marketplace" replace />} />
         <Route path="/marketplace" element={<Marketplace />} />
+        <Route path="/capabilities/:slug" element={<CapabilityDetail />} />
         <Route path="/build-sample" element={<SampleBuilder />} />
         <Route path="/about" element={<About />} />
         <Route path="/checkout" element={<Navigate to="/request-sample" replace />} />

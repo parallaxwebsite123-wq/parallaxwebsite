@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
 export default function Profile() {
   return (
@@ -8,26 +9,7 @@ export default function Profile() {
         <div className="ambient-blob blob-2" style={{ width: '500px', height: '500px', bottom: '10%', right: '-100px' }}></div>
       </div>
 
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-container-max rounded-xl z-50 bg-white/40 backdrop-blur-[40px] border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-        <div className="flex justify-between items-center px-8 py-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-primary">Parallax</span>
-          </Link>
-          <nav className="hidden md:flex gap-8">
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/shop">Collections</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/shop">Essences</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/about">Rituals</Link>
-          </nav>
-          <div className="flex gap-4">
-            <Link aria-label="shopping_bag" className="text-primary hover:bg-white/20 transition-all duration-300 p-2 rounded-full active:scale-95" to="/checkout">
-              <span className="material-symbols-outlined">shopping_bag</span>
-            </Link>
-            <Link aria-label="person" className="text-primary bg-white/40 shadow-inner transition-all duration-300 p-2 rounded-full active:scale-95" to="/profile">
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="flex-grow pt-32 pb-24 max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop w-full">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

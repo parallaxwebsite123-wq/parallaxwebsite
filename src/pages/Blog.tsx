@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
 export default function Blog() {
   return (
@@ -7,24 +8,7 @@ export default function Blog() {
         <div className="ambient-blob blob-3" style={{ width: '600px', height: '600px', top: '5%' }}></div>
       </div>
 
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-container-max rounded-xl z-50 bg-white/40 backdrop-blur-[40px] border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-        <div className="flex justify-between items-center px-8 py-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-primary">Parallax OEM</span>
-          </Link>
-          <nav className="hidden md:flex gap-8">
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/marketplace">Marketplace</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/build-sample">Build a Sample</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/about">Capabilities</Link>
-            <Link className="font-label-sm text-label-sm text-secondary font-semibold border-b-2 border-secondary pb-1 uppercase tracking-widest active:scale-95 transition-transform" to="/blog">Journal</Link>
-          </nav>
-          <div className="flex gap-4">
-            <Link aria-label="admin_panel_settings" className="text-primary hover:bg-white/20 transition-all duration-300 p-2 rounded-full active:scale-95" to="/admin">
-              <span className="material-symbols-outlined">admin_panel_settings</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="flex-grow pt-32 pb-24">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-16 text-center">
@@ -95,7 +79,7 @@ export default function Blog() {
           <nav className="flex flex-wrap justify-center gap-6 mb-4 md:mb-0">
             <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/about">Manufacturing Quality</Link>
             <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/blog">Industry Insights</Link>
-            <a className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" href="mailto:concierge@parallaxperfumery.com">Contact Specialist</a>
+            <a className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" href="mailto:contact@parallaxperfumery.com">Contact Specialist</a>
           </nav>
           <div className="font-body-md text-body-md text-on-surface-variant text-sm">
             © 2024 Parallax Perfumery.

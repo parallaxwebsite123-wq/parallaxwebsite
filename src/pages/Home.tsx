@@ -1,219 +1,390 @@
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
 import MotionReveal from '../components/MotionReveal';
-import { motion } from 'motion/react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import Footer from '../components/Footer';
+import Navbar from '../components/Navbar';
+import InquiryModal from '../components/InquiryModal';
+import { getPublishedHomepageContent, HomepageContent } from '../services/homepageContent';
 
-export default function Home() {
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoReady, setVideoReady] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+function CapacityCounter() {
+  const [count, setCount] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'hero-video'), (docSnap) => {
-      if (docSnap.exists() && docSnap.data().url) {
-        setVideoUrl(docSnap.data().url);
-      } else {
-        setVideoUrl(null);
-      }
-    });
-    return () => unsub();
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      setCount(10000);
+      setHasAnimated(true);
+      return;
+    }
+
+    const element = sectionRef.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
+          observer.disconnect();
+
+          const target = 10000;
+          const duration = 1800;
+          const startTime = performance.now();
+
+          const updateCounter = (currentTime: number) => {
+            const elapsedTime = currentTime - startTime;
+            const progress = Math.min(elapsedTime / duration, 1);
+            const easedProgress = 1 - Math.pow(1 - progress, 2);
+            const currentCount = Math.floor(easedProgress * target);
+
+            setCount(currentCount);
+
+            if (progress < 1) {
+              requestAnimationFrame(updateCounter);
+            } else {
+              setCount(target);
+            }
+          };
+
+          requestAnimationFrame(updateCounter);
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasAnimated]);
+
+  const formattedCount = count.toLocaleString('en-US');
+
+  return (
+    <div ref={sectionRef} aria-label="Capacity of 10,000 plus monthly">
+      <span className="font-label-sm text-xs uppercase tracking-widest text-secondary-fixed-dim block mb-2 font-semibold">
+        Capacity of
+      </span>
+      <h3 className="font-headline-md text-2xl md:text-4xl font-extrabold mb-2" aria-hidden="true">
+        {formattedCount}+ monthly
+      </h3>
+    </div>
+  );
+}
+
+const DEFAULT_PRODUCTS = [
+  {
+    id: "product-1",
+    category: "Signature Collection",
+    title: "Fine Fragrance Oils",
+    link: "/marketplace?category=fine-fragrance",
+    image: { url: "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA", alt: "Fine Fragrance Oils" }
+  },
+  {
+    id: "product-2",
+    category: "Bespoke Tooling",
+    title: "Custom Glassware",
+    link: "/build-sample",
+    image: { url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBMdbLYDwtvawQ8hBII-JwKaecMQyRXAQmQtv8cDDv55u7HI87JZVsTGNCImOkuwbEHZ6pl5T_-LVBNd7KBegBdENHJ1DXgLYFgVAZJXO7D9Gc-B7iv1IEhyk2SwERlK-gtZsDvzFOmIwgQpjT0ssjASyHky8KrrRJD7O3QT9E-4zwJwtYYbpvG5C5QDjYBs2w-wTyEtGXZcjkhGnDF_-DxOMo9ezOMs7PNHIPdLMwoiyf6xEquI4IaTA", alt: "Custom Glassware" }
+  },
+  {
+    id: "product-3",
+    category: "Home & Ambient",
+    title: "Reed Diffusers & Sprays",
+    link: "/marketplace?category=ambient",
+    image: { url: "https://lh3.googleusercontent.com/aida-public/AB6AXuA2RVrUT9aCMFofBgkTV06mfmP6SRbeYXsJDOUHgTEh45y7X7t0A06bRmomBNmsdPBgtduel1gR7trACZi47jS9yo0mxJ2Bb_nSbISPXyis3T761yLZz_1qZ_iDNyI08hx4dorgK0K1S0UPKeknPIP7gO9hdnV8wSsUV458sGIoL1MoW4leUJADvzOIdInqd4BhPutomPzrgnv18rQEUjEZhfOv33DbxeXKO3SsRdDhhIjO17egF_WJ_w", alt: "Reed Diffusers & Sprays" }
+  },
+  {
+    id: "product-4",
+    category: "Private Label",
+    title: "Private Label Fragrance",
+    link: "/marketplace",
+    image: { url: "/images/product-4.png", alt: "Private Label Fragrance" }
+  },
+  {
+    id: "product-5",
+    category: "Packaging",
+    title: "Bespoke Packaging",
+    link: "/about",
+    image: { url: "/images/product-5.png", alt: "Bespoke Packaging" }
+  }
+];
+
+const CAPABILITIES = [
+  {
+    id: "cap-1",
+    title: "White-label manufacturing",
+    desc: "Launch under your own brand with ready-to-market fragrance manufacturing and private-label support."
+  },
+  {
+    id: "cap-2",
+    title: "Custom fragrance development",
+    desc: "Develop a distinctive fragrance profile tailored to your brand, market and product positioning."
+  },
+  {
+    id: "cap-3",
+    title: "Premium packaging",
+    desc: "From bottle selection to finishing details, create packaging designed to reflect your brand identity."
+  },
+  {
+    id: "cap-4",
+    title: "Scalable manufacturing",
+    desc: "Move from initial sampling to larger production runs with manufacturing capacity designed to scale with demand."
+  },
+  {
+    id: "cap-5",
+    title: "Multiple fragrance formats",
+    desc: "Manufacture across formats including Eau de Parfum, Extrait, Cologne, Attars, Oils and other fragrance applications."
+  },
+  {
+    id: "cap-6",
+    title: "End-to-end product development",
+    desc: "Bring the complete product together from concept and formulation through packaging, sampling and manufacturing."
+  }
+];
+
+export default function Home() {
+  const [content, setContent] = useState<HomepageContent | null>(null);
+  const [openCapability, setOpenCapability] = useState<number>(0);
+
+  // Inquiry Modal State
+  const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
+  const [selectedInquiryService, setSelectedInquiryService] = useState<string>('');
+
+  useEffect(() => {
+    getPublishedHomepageContent()
+      .then((data) => setContent(data))
+      .catch((err) => console.error("Failed to load homepage content:", err));
   }, []);
+
+  const heroImageSrc = content?.hero?.image?.url || "/images/hero/hero-banner.png";
+  const heroImageAlt = content?.hero?.image?.alt || "Our Preciously Curated Gift Collection - Parallax Perfumery";
+
+  const mobileHeroImageSrc = content?.mobileHero?.image?.url || heroImageSrc;
+  const mobileHeroImageAlt = content?.mobileHero?.image?.alt || heroImageAlt;
+
+  const productList = content?.products && content.products.length === 5 
+    ? content.products 
+    : DEFAULT_PRODUCTS;
+  
+  const marqueeItems = [...productList, ...productList];
+
+  const activeCapabilityImage = (openCapability >= 0 && content?.capabilities?.items?.[openCapability]?.image?.url)
+    ? content.capabilities.items[openCapability].image.url
+    : (content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA");
+
+  const activeCapabilityAlt = (openCapability >= 0 && content?.capabilities?.items?.[openCapability]?.image?.alt)
+    ? content.capabilities.items[openCapability].image.alt
+    : (content?.capabilities?.mainFineFragrance?.alt || "Fine Fragrance Manufacturing");
 
   return (
     <div className="text-on-surface font-body-md text-body-md antialiased relative min-h-screen flex flex-col">
       
-      {/* Gradient Foundation (Fallback) */}
+      {/* Gradient Foundation */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-[-3]">
         <div className="ambient-blob blob-1"></div>
         <div className="ambient-blob blob-2"></div>
         <div className="ambient-blob blob-3"></div>
       </div>
-
-      {/* Hero Video */}
-      {videoUrl && (
-        <div className="absolute top-0 left-0 w-full h-screen z-[-2] overflow-hidden">
-          <motion.video 
-            ref={videoRef}
-            src={videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            onCanPlay={() => setVideoReady(true)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: videoReady ? 1 : 0 }}
-            transition={{ duration: 1.5, ease: "easeInOut" }}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
-
-      {/* Hero Video Overlay */}
-      {videoUrl && (
-        <div className="absolute top-0 left-0 w-full h-screen z-[-1] bg-surface/40 backdrop-blur-[2px] pointer-events-none"></div>
-      )}
       
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-container-max rounded-xl z-50 bg-white/40 backdrop-blur-[40px] border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-        <div className="flex justify-between items-center px-8 py-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-primary">Parallax</span>
-          </Link>
-          <nav className="hidden md:flex gap-8">
-            <Link className="font-label-sm text-label-sm text-secondary font-semibold border-b-2 border-secondary pb-1 uppercase tracking-widest active:scale-95 transition-transform" to="/marketplace">Marketplace</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/build-sample">Build a Sample</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/about">Capabilities</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/blog">Journal</Link>
-          </nav>
-          <div className="flex gap-4">
-            <Link aria-label="person" className="text-primary hover:bg-white/20 transition-all duration-300 p-2 rounded-full active:scale-95" to="/profile">
-              <span className="material-symbols-outlined">person</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
-      <main className="flex-grow pt-32 pb-24 relative">
-        <section className="relative w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop min-h-[80vh] flex items-center justify-center mb-32 z-10">
-          <div className="glass-panel rounded-xl p-8 md:p-16 max-w-4xl w-full text-center relative mx-4 border border-white/40 shadow-xl backdrop-blur-md">
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
-              className="inline-block px-4 py-1 rounded-full bg-secondary-container/30 text-secondary font-label-sm text-label-sm uppercase tracking-widest mb-6 border border-white/50 shadow-sm"
-            >
-              OEM / ODM Manufacturing
-            </motion.div>
-            
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
-              className="font-headline-xl text-headline-lg-mobile md:text-headline-xl text-primary mb-6"
-            >
-              BUILD YOUR FRAGRANCE BRAND.
-            </motion.h1>
-            
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
-              className="font-body-lg text-body-lg text-primary max-w-2xl mx-auto mb-10 font-medium drop-shadow-md"
-            >
-              From concept and fragrance development to packaging, sampling and full-scale manufacturing, Parallax transforms fragrance ideas into market-ready products.
-            </motion.p>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.8, duration: 0.8, ease: "easeOut" }}
-              className="flex flex-col sm:flex-row justify-center gap-4"
-            >
-              <Link to="/build-sample" className="btn-primary py-4 px-8 text-lg w-full sm:w-auto">
-                Create Your Fragrance
-              </Link>
-              <Link to="/about" className="inline-flex items-center justify-center bg-white text-primary font-body-md font-semibold py-4 px-8 rounded-xl shadow-md hover:bg-white/90 transition-all duration-300 active:scale-95 w-full sm:w-auto">
-                Explore Our Capabilities
-              </Link>
-            </motion.div>
-          </div>
+      <main className="flex-grow pt-28 md:pt-32 pb-24 relative">
+        {/* Hero Section */}
+        <section className="w-full mb-16 md:mb-24 relative z-10 overflow-hidden">
+          <h1 className="sr-only">Parallax OEM / ODM Manufacturing - Build Your Fragrance Brand</h1>
           
-          <div className="absolute inset-0 z-[-1] flex items-center justify-center opacity-30 mix-blend-multiply pointer-events-none">
-             {!videoUrl && (
-               <img className="w-full h-full object-cover max-w-5xl max-h-[80vh] rounded-3xl blur-[2px]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2RVrUT9aCMFofBgkTV06mfmP6SRbeYXsJDOUHgTEh45y7X7t0A06bRmomBNmsdPBgtduel1gR7trACZi47jS9yo0mxJ2Bb_nSbISPXyis3T761yLZz_1qZ_iDNyI08hx4dorgK0K1S0UPKeknPIP7gO9hdnV8wSsUV458sGIoL1MoW4leUJADvzOIdInqd4BhPutomPzrgnv18rQEUjEZhfOv33DbxeXKO3SsRdDhhIjO17egF_WJ_w" alt="Ethereal Essence Laboratory" />
-             )}
+          {/* Desktop Banner (Hidden on Mobile) */}
+          <div className="hidden md:block w-full aspect-[1920/650] max-h-[650px] overflow-hidden">
+            <img 
+              src={heroImageSrc} 
+              alt={heroImageAlt}
+              className="w-full h-full object-cover object-center block"
+            />
+          </div>
+
+          {/* Mobile Banner (535x378 Frame - Visible on Mobile) */}
+          <div className="block md:hidden w-full aspect-[535/378] overflow-hidden bg-black/5">
+            <img 
+              src={mobileHeroImageSrc} 
+              alt={mobileHeroImageAlt}
+              className="w-full h-full object-cover object-center block"
+            />
           </div>
         </section>
 
-        <section className="w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-32 relative z-10 bg-surface-bright/50 p-8 rounded-3xl backdrop-blur-sm border border-white/30">
+        {/* Continuous Infinite Horizontal Product Marquee */}
+        <section className="w-full mb-16 md:mb-24 relative z-10 overflow-hidden py-2">
+          {/* Centered Heading above moving product row */}
+          <div className="w-full text-center mb-8 md:mb-10 px-6">
+            <h2 className="font-headline-md text-2xl sm:text-3xl md:text-4xl font-extrabold text-primary tracking-tight max-w-4xl mx-auto">
+              Leading White & Private labelling Manufacturer
+            </h2>
+          </div>
+
+          <div className="w-full overflow-hidden">
+            <div className="animate-marquee-left flex gap-6 md:gap-8 pr-6 md:pr-8">
+              {marqueeItems.map((item, idx) => (
+                <Link 
+                  key={`${item.id}-${idx}`} 
+                  to={item.link || "/marketplace"} 
+                  className="w-[280px] sm:w-[360px] md:w-[440px] shrink-0 rounded-2xl md:rounded-3xl overflow-hidden aspect-[4/3] md:aspect-[16/10] relative block shadow-md hover:shadow-xl transition-all duration-500 border border-black/5 bg-surface-bright group"
+                >
+                  <img 
+                    src={item.image?.url} 
+                    alt={item.image?.alt || item.title} 
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 block" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent opacity-90 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute bottom-0 left-0 p-6 md:p-8 text-white z-10">
+                    <span className="font-label-sm text-xs uppercase tracking-widest text-secondary-fixed-dim block mb-1">
+                      {item.category}
+                    </span>
+                    <h3 className="font-headline-md text-xl md:text-2xl font-bold">
+                      {item.title}
+                    </h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Manufacturing Capabilities Section - Editorial Two Column Layout */}
+        <section className="w-full px-6 md:px-12 lg:px-16 mb-24 md:mb-32 relative z-10">
           <MotionReveal delay={0.1}>
-            <div className="flex items-center justify-between mb-12">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 md:mb-12">
               <h2 className="font-headline-md text-headline-md text-primary">Manufacturing Capabilities</h2>
-              <div className="h-px flex-grow mx-8 bg-gradient-to-r from-transparent via-outline-variant to-transparent opacity-50"></div>
-              <Link className="font-label-sm text-label-sm text-secondary uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2 group" to="/marketplace">
-                View Marketplace
-                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-              </Link>
+              <div className="hidden sm:block h-px flex-grow mx-4 md:mx-6 bg-gradient-to-r from-transparent via-outline-variant to-transparent opacity-50"></div>
+              <div className="flex items-center gap-6 shrink-0">
+                <span className="font-label-sm text-xs uppercase tracking-wider text-primary/80 font-bold bg-primary/10 px-3.5 py-1.5 rounded-full border border-primary/20 whitespace-nowrap">
+                  10K+ Monthly Manufacturing capacity
+                </span>
+                <Link className="hidden lg:inline-flex font-label-sm text-label-sm text-secondary uppercase tracking-widest hover:text-primary transition-colors items-center gap-2 group shrink-0" to="/marketplace">
+                  View Marketplace
+                  <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                </Link>
+              </div>
             </div>
           </MotionReveal>
           
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter auto-rows-[300px]">
-            <MotionReveal delay={0.2} className="md:col-span-8 h-full">
-              <Link className="h-full w-full glass-panel glass-panel-hover rounded-xl overflow-hidden relative group block" to="/marketplace?category=fine-fragrance">
-                <div className="absolute inset-0 bg-gradient-to-tr from-secondary-container/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
-                <div className="absolute inset-0 z-0">
-                  <img className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA" alt="Fine Fragrance" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left Column — Fine Fragrance Card (~58% width) - Visual Container (No Marketplace Link) */}
+            <MotionReveal delay={0.2} className="lg:col-span-7 h-full">
+              <div 
+                className="w-full min-h-[440px] lg:min-h-[580px] h-full rounded-2xl md:rounded-3xl overflow-hidden relative group block shadow-md hover:shadow-xl transition-all duration-500 border border-black/5 bg-surface-bright"
+              >
+                <img 
+                  key={activeCapabilityImage}
+                  src={activeCapabilityImage} 
+                  alt={activeCapabilityAlt} 
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-500 ease-in-out block absolute inset-0 animate-fade-in" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent opacity-90 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute bottom-0 left-0 p-8 md:p-10 text-white z-10 w-full pointer-events-none">
+                  <CapacityCounter />
                 </div>
-                <div className="absolute bottom-0 left-0 p-8 z-20 w-full bg-gradient-to-t from-white/90 to-transparent">
-                  <h3 className="font-headline-md text-headline-md text-primary mb-2 group-hover:-translate-y-1 transition-transform duration-300">Fine Fragrance</h3>
-                  <p className="font-body-md text-body-md text-on-surface-variant flex items-center gap-2 group-hover:-translate-y-1 transition-transform duration-300 delay-75">
-                    Eau de Parfum, Extrait, Cologne, Attars & Oils.
-                    <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100 transition-opacity">arrow_right_alt</span>
-                  </p>
-                </div>
-              </Link>
+              </div>
             </MotionReveal>
 
-            <MotionReveal delay={0.3} className="md:col-span-4 h-full">
-              <Link className="h-full w-full glass-panel glass-panel-hover rounded-xl overflow-hidden relative group block" to="/marketplace?category=personal-care">
-                <div className="absolute inset-0 bg-gradient-to-bl from-primary-fixed-dim/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
-                <div className="absolute inset-0 z-0">
-                  <img className="w-full h-full object-cover opacity-70 group-hover:scale-105 transition-transform duration-700 mix-blend-luminosity hover:mix-blend-normal" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMdbLYDwtvawQ8hBII-JwKaecMQyRXAQmQtv8cDDv55u7HI87JZVsTGNCImOkuwbEHZ6pl5T_-LVBNd7KBegBdENHJ1DXgLYFgVAZJXO7D9Gc-B7iv1IEhyk2SwERlK-gtZsDvzFOmIwgQpjT0ssjASyHky8KrrRJD7O3QT9E-4zwJwtYYbpvG5C5QDjYBs2w-wTyEtGXZcjkhGnDF_-DxOMo9ezOMs7PNHIPdLMwoiyf6xEquI4IaTA" alt="Personal Care" />
-                </div>
-                <div className="absolute bottom-0 left-0 p-8 z-20">
-                  <h3 className="font-headline-md text-headline-md text-primary mb-2">Personal Care</h3>
-                  <p className="font-label-sm text-label-sm text-secondary uppercase tracking-widest">Body Mists & Deodorants</p>
-                </div>
-              </Link>
-            </MotionReveal>
+            {/* Right Column — 6 Accordion Capabilities List (~42% width) */}
+            <MotionReveal delay={0.3} className="lg:col-span-5 flex flex-col justify-center">
+              <div className="divide-y divide-black/10 border-t border-b border-black/10">
+                {CAPABILITIES.map((item, idx) => {
+                  const isOpen = openCapability === idx;
+                  return (
+                    <div key={item.id} className="py-4 md:py-5 transition-colors duration-300">
+                      <button
+                        type="button"
+                        id={`capability-header-${idx}`}
+                        aria-expanded={isOpen}
+                        aria-controls={`capability-content-${idx}`}
+                        onClick={() => setOpenCapability(isOpen ? -1 : idx)}
+                        className="w-full flex items-center justify-between text-left group focus:outline-none focus:ring-1 focus:ring-secondary/50 rounded-lg p-1 cursor-pointer"
+                      >
+                        <h3 className={`font-headline-md text-base md:text-lg lg:text-xl tracking-tight transition-colors duration-300 ${isOpen ? 'text-primary font-semibold' : 'text-on-surface hover:text-primary font-medium'}`}>
+                          {item.title}
+                        </h3>
+                        <span className="material-symbols-outlined text-secondary text-xl transition-transform duration-300 shrink-0 ml-3">
+                          {isOpen ? 'remove' : 'add'}
+                        </span>
+                      </button>
 
-            <MotionReveal delay={0.4} className="md:col-span-6 h-full">
-              <Link className="h-full w-full glass-panel glass-panel-hover rounded-xl overflow-hidden relative group block" to="/marketplace?category=ambient">
-                <div className="absolute inset-0 z-0 bg-surface-container-low/50">
-                  <div className="w-full h-full bg-cover bg-center opacity-60 group-hover:opacity-80 transition-opacity duration-500" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuA8bLxdKqxQUfJUkgswReuYaV1zAmpZED6RSzWaKUXf6ZlBr3P05m0fpG7NCBv9G9k3E7axg_zCfpAZW7dYOFfPM3aYQxZJ4ey_B2aETnFfjE1U4ocXj7RNmzQI6R5l-vrIdydP4GBquYnKfU4Jku9GxyH60N57Cwbuu-8b_0Bct3kTinKn43sNMLY890YfZDqFm8vOMlv150RiX99UA_PbY8T-aXqXq1uf8e4NFmFqhBy76y4duszksw')" }}></div>
-                </div>
-                <div className="relative z-20 p-8 h-full flex flex-col justify-between">
-                  <div className="w-10 h-10 rounded-full glass-panel flex items-center justify-center">
-                    <span className="material-symbols-outlined text-primary">air</span>
-                  </div>
-                  <div>
-                    <h3 className="font-headline-md text-headline-md text-primary mb-2">Home & Ambient</h3>
-                    <p className="font-body-md text-body-md text-on-surface-variant">Room Sprays, Reed Diffusers, Candles & Dispensers.</p>
-                  </div>
-                </div>
-              </Link>
-            </MotionReveal>
+                      <div
+                        id={`capability-content-${idx}`}
+                        role="region"
+                        aria-labelledby={`capability-header-${idx}`}
+                        className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0 mt-0 overflow-hidden'}`}
+                      >
+                        <div className="overflow-hidden pr-2">
+                          <p className="font-body-md text-sm md:text-base text-on-surface-variant leading-relaxed mb-4">
+                            {item.desc}
+                          </p>
 
-            <MotionReveal delay={0.5} className="md:col-span-6 h-full">
-              <Link className="h-full w-full glass-panel glass-panel-hover rounded-xl p-8 relative group block flex flex-col justify-center items-center text-center bg-gradient-to-br from-surface to-surface-container-low" to="/build-sample">
-                <span className="material-symbols-outlined text-4xl text-secondary mb-4 group-hover:scale-110 transition-transform duration-300">science</span>
-                <h3 className="font-headline-md text-headline-md text-primary mb-2">Custom Development</h3>
-                <p className="font-body-md text-body-md text-on-surface-variant mb-6">Develop a unique olfactory signature for your brand.</p>
-                <span className="font-label-sm text-label-sm text-primary uppercase tracking-widest border-b border-primary pb-1 group-hover:text-secondary group-hover:border-secondary transition-colors">Start Formulation</span>
-              </Link>
+                          <div className="flex items-center gap-4 mt-2">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setSelectedInquiryService(item.title);
+                                setInquiryModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-primary text-white text-[11px] font-semibold uppercase tracking-wider hover:bg-secondary transition-all shadow-sm active:scale-95 shrink-0 whitespace-nowrap cursor-pointer"
+                            >
+                              <span>Doubts? Contact us</span>
+                              <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                            </button>
+
+                            <div className="flex flex-col gap-1 text-[11px] text-on-surface-variant shrink-0">
+                              <a 
+                                href="mailto:contact@parallaxperfumery.com" 
+                                className="inline-flex items-center gap-1.5 hover:text-primary transition-colors font-medium"
+                              >
+                                <span className="material-symbols-outlined text-sm text-secondary">mail</span>
+                                <span>contact@parallaxperfumery.com</span>
+                              </a>
+
+                              <a 
+                                href="tel:+18005550199" 
+                                className="inline-flex items-center gap-1.5 hover:text-primary transition-colors font-medium"
+                              >
+                                <span className="material-symbols-outlined text-sm text-secondary">call</span>
+                                <span>+1 (800) 555-0199</span>
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile View Marketplace Button (Positioned below "End-to-end product development" snippet) */}
+              <div className="mt-8 flex justify-center lg:hidden">
+                <Link 
+                  to="/marketplace" 
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-primary text-white text-xs font-semibold uppercase tracking-widest hover:bg-secondary transition-all shadow-md active:scale-95 w-full text-center"
+                >
+                  <span>View Marketplace</span>
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </Link>
+              </div>
             </MotionReveal>
           </div>
         </section>
       </main>
 
-      <footer className="w-full py-12 mt-auto bg-surface-bright/20 backdrop-blur-[30px] border-t border-white/30 z-10 relative">
-        <div className="max-w-container-max mx-auto px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-unit">
-          <div className="font-headline-md text-headline-md text-primary mb-4 md:mb-0 flex items-center gap-2">
-            Parallax OEM
-          </div>
-          <nav className="flex flex-wrap justify-center gap-6 mb-4 md:mb-0">
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/about">Manufacturing Quality</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/blog">Industry Insights</Link>
-            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/return-policy">Policies</Link>
-            <a className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" href="mailto:concierge@parallaxperfumery.com">Contact Specialist</a>
-          </nav>
-          <div className="font-body-md text-body-md text-on-surface-variant text-sm">
-            © 2024 Parallax Perfumery. Where Fragrance Ideas Become Brands.
-          </div>
-        </div>
-      </footer>
+      <InquiryModal 
+        isOpen={inquiryModalOpen} 
+        onClose={() => setInquiryModalOpen(false)} 
+        initialService={selectedInquiryService}
+      />
+
+      <Footer />
     </div>
   );
 }
+

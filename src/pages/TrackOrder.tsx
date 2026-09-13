@@ -10,7 +10,7 @@ export default function TrackOrder() {
       <header className="w-full bg-white/40 backdrop-blur-md sticky top-0 z-50 border-b border-white/50 shadow-sm">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-primary">Parallax</span>
+            <span className="font-headline-md text-headline-md font-medium tracking-tight text-black">Parallax</span>
           </Link>
           <Link to="/profile" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">close</span> Close Tracker

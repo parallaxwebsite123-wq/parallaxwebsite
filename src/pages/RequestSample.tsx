@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
 export default function RequestSample() {
   const navigate = useNavigate();
@@ -14,16 +15,7 @@ export default function RequestSample() {
       <div className="blob-bg w-[800px] h-[800px] bg-secondary-fixed-dim top-[-200px] left-[-200px]"></div>
       <div className="blob-bg w-[600px] h-[600px] bg-primary-fixed-dim bottom-[-100px] right-[-100px]"></div>
 
-      <header className="w-full border-b border-outline-variant/30 bg-surface-bright/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-6 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-primary">Parallax</span>
-          </Link>
-          <div className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">science</span> B2B Sample Request
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12 md:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24">
