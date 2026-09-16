@@ -202,6 +202,12 @@ export default function Home() {
             <img 
               src={heroImageSrc} 
               alt={heroImageAlt}
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (target.src !== '/images/hero/hero-banner.png') {
+                  target.src = '/images/hero/hero-banner.png';
+                }
+              }}
               className="w-full h-full object-cover object-center block"
             />
           </div>
@@ -211,6 +217,12 @@ export default function Home() {
             <img 
               src={mobileHeroImageSrc} 
               alt={mobileHeroImageAlt}
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (target.src !== '/images/hero/mobile-hero-banner.png') {
+                  target.src = '/images/hero/mobile-hero-banner.png';
+                }
+              }}
               className="w-full h-full object-cover object-center block"
             />
           </div>

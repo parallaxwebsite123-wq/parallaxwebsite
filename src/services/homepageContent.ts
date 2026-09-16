@@ -52,7 +52,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   },
   mobileHero: {
     image: {
-      url: '/images/hero/hero-banner.png',
+      url: '/images/hero/mobile-hero-banner.png',
       alt: 'Our Preciously Curated Gift Collection - Parallax Perfumery (Mobile)',
       updatedAt: 1725840000000
     }
@@ -66,7 +66,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   },
   aboutMobileBanner: {
     image: {
-      url: '/images/about-banner-bg.png',
+      url: '/images/about-mobile-banner.png',
       alt: 'Parallax About Us Banner (Mobile)',
       updatedAt: 1725840000000
     }

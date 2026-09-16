@@ -117,7 +117,7 @@ export default function About() {
   }, []);
 
   const desktopBannerSrc = content?.aboutBanner?.image?.url || '/images/about-banner-bg.png';
-  const mobileBannerSrc = content?.aboutMobileBanner?.image?.url || desktopBannerSrc;
+  const mobileBannerSrc = content?.aboutMobileBanner?.image?.url || '/images/about-mobile-banner.png';
 
   const openInquiry = (serviceName?: string) => {
     if (serviceName) setSelectedService(serviceName);
@@ -147,6 +147,12 @@ export default function About() {
               key={desktopBannerSrc + mobileBannerSrc}
               src={desktopBannerSrc} 
               alt="Parallax Banner" 
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (target.src !== '/images/about-banner-bg.png') {
+                  target.src = '/images/about-banner-bg.png';
+                }
+              }}
               className="w-full h-full object-cover object-center block"
             />
           </picture>
