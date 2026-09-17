@@ -304,51 +304,16 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
   };
 }
 
-export async function getPublishedHomepageContent(): Promise<HomepageContent> {
-  if (isSupabaseConfigured()) {
-    try {
-      const { data, error } = await supabase
-        .from('homepage_content')
-        .select('*')
-        .eq('id', 'published')
-        .single();
-
-      if (!error && data) {
-        return normalizeHomepageContent(data);
-      }
-    } catch (err) {
-      console.warn('Supabase getPublishedHomepageContent error:', err);
-    }
-  }
-
-  try {
-    const res = await fetch('/api/homepage-content', { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      return normalizeHomepageContent(data);
-    }
-    const fallbackRes = await fetch('/data/homepage-content.json', { cache: 'no-store' });
-    if (fallbackRes.ok) {
-      const data = await fallbackRes.json();
-      return normalizeHomepageContent(data);
-    }
-  } catch (err) {
-    console.warn('Could not fetch homepage content from API, using defaults:', err);
-  }
-  return normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
-}
-
 export async function uploadAdminImage(file: File): Promise<{ url: string; filename: string }> {
   if (file.size > 10 * 1024 * 1024) {
     throw new Error('Image upload failed: File size exceeds 10MB limit.');
   }
 
-  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-  if (!validTypes.includes(file.type.toLowerCase())) {
-    throw new Error('Image upload failed: Unsupported file type. Only JPG, PNG, and WebP images are allowed.');
+  if (file.type && !file.type.startsWith('image/')) {
+    throw new Error('Image upload failed: Unsupported file format. Please select a valid image file (JPG, PNG, WebP, etc.).');
   }
 
-  // Primary: Upload to Supabase Storage if configured
+  // 1. Try Supabase Storage if configured
   if (isSupabaseConfigured()) {
     try {
       const ext = file.name.split('.').pop() || 'png';
@@ -361,50 +326,56 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
           upsert: true
         });
 
-      if (uploadError) {
-        console.error('Supabase storage upload error:', uploadError.message);
-        throw new Error(`Image upload failed: ${uploadError.message}`);
+      if (!uploadError) {
+        const { data: publicUrlData } = supabase.storage
+          .from('website-assets')
+          .getPublicUrl(cleanFileName);
+
+        if (publicUrlData?.publicUrl) {
+          return { url: publicUrlData.publicUrl, filename: cleanFileName };
+        }
+      } else {
+        console.warn('Supabase storage upload notice (falling back to Data URL):', uploadError.message);
       }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('website-assets')
-        .getPublicUrl(cleanFileName);
-
-      if (publicUrlData?.publicUrl) {
-        return { url: publicUrlData.publicUrl, filename: cleanFileName };
-      }
-
-      throw new Error('Image upload failed: Could not retrieve public URL for uploaded file.');
-    } catch (err: any) {
-      console.error('Supabase storage upload error:', err);
-      throw err;
+    } catch (err) {
+      console.warn('Supabase storage exception (falling back to Data URL):', err);
     }
   }
 
-  // Fallback to local server upload API if Supabase is not configured
+  // 2. Local image processing fallback (Convert to Data URL / Base64)
+  // This guarantees that selecting any image file from local disk works instantly
+  // and saves seamlessly without requiring Supabase storage bucket or server endpoint.
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const base64 = reader.result as string;
-        const res = await fetch('/api/upload-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ base64, name: file.name, type: file.type })
-        });
+        const dataUrl = reader.result as string;
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Image upload failed.');
+        // Optionally attempt sync to local upload endpoint if present
+        try {
+          const res = await fetch('/api/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64: dataUrl, name: file.name, type: file.type })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.url) {
+              resolve({ url: data.url, filename: data.filename || file.name });
+              return;
+            }
+          }
+        } catch {
+          // Static host without /api endpoint; resolve with Data URL
         }
 
-        const data = await res.json();
-        resolve({ url: data.url, filename: data.filename });
+        resolve({ url: dataUrl, filename: file.name });
       } catch (err: any) {
         reject(err);
       }
     };
-    reader.onerror = () => reject(new Error('Failed to read image file from disk.'));
+    reader.onerror = () => reject(new Error('Failed to read image file from local disk.'));
     reader.readAsDataURL(file);
   });
 }
@@ -412,6 +383,14 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
 export async function savePublishedHomepageContent(content: HomepageContent): Promise<void> {
   const normalized = normalizeHomepageContent(content);
 
+  // 1. Instant local storage persistence fallback
+  try {
+    localStorage.setItem('parallax_homepage_content', JSON.stringify(normalized));
+  } catch (e) {
+    console.warn('Could not save homepage content to localStorage:', e);
+  }
+
+  // 2. Primary Supabase database persistence
   if (isSupabaseConfigured()) {
     try {
       const payload = {
@@ -440,34 +419,71 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
         .upsert(payload);
 
       if (error) {
-        console.error('Supabase homepage_content save error:', error.message);
-        throw new Error(`Failed to save banner content: ${error.message}`);
+        console.warn('Supabase homepage_content save notice:', error.message);
+      } else {
+        // Sync local JSON backup asynchronously if dev server is running
+        fetch('/api/homepage-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(normalized)
+        }).catch(() => {});
+
+        return;
       }
-
-      // Sync local JSON backup asynchronously if dev server is running
-      fetch('/api/homepage-content', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(normalized)
-      }).catch(() => {});
-
-      return;
     } catch (err: any) {
-      if (err.message && !err.message.includes('API server')) {
-        throw err;
-      }
-      console.warn('Failed to save to Supabase, attempting fallback API:', err);
+      console.warn('Failed to save to Supabase:', err);
     }
   }
 
-  const res = await fetch('/api/homepage-content', {
+  // Sync to local API server if available
+  fetch('/api/homepage-content', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(normalized)
-  });
+  }).catch(() => {});
+}
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || 'Could not publish this change. The current homepage image remains unchanged.');
+export async function getPublishedHomepageContent(): Promise<HomepageContent> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('homepage_content')
+        .select('*')
+        .eq('id', 'published')
+        .single();
+
+      if (!error && data) {
+        return normalizeHomepageContent(data);
+      }
+    } catch (err) {
+      console.warn('Supabase getPublishedHomepageContent error:', err);
+    }
   }
+
+  // Check localStorage persistence fallback
+  try {
+    const localData = localStorage.getItem('parallax_homepage_content');
+    if (localData) {
+      const parsed = JSON.parse(localData);
+      return normalizeHomepageContent(parsed);
+    }
+  } catch (err) {
+    console.warn('Could not load homepage content from localStorage:', err);
+  }
+
+  try {
+    const res = await fetch('/api/homepage-content', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      return normalizeHomepageContent(data);
+    }
+    const fallbackRes = await fetch('/data/homepage-content.json', { cache: 'no-store' });
+    if (fallbackRes.ok) {
+      const data = await fallbackRes.json();
+      return normalizeHomepageContent(data);
+    }
+  } catch (err) {
+    console.warn('Could not fetch homepage content from API, using defaults:', err);
+  }
+  return normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
 }

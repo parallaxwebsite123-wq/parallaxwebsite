@@ -175,9 +175,8 @@ export function BannerListEditor({
       return;
     }
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-    if (!validTypes.includes(file.type.toLowerCase())) {
-      showNotification('error', 'Image upload failed: Unsupported file type. Only JPG, PNG, and WebP are allowed.');
+    if (file.type && !file.type.startsWith('image/')) {
+      showNotification('error', 'Image upload failed: Unsupported file type. Please select a valid image file (JPG, PNG, WebP, etc.).');
       return;
     }
 
