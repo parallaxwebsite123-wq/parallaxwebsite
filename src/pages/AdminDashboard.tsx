@@ -5,13 +5,420 @@ import {
   uploadAdminImage,
   savePublishedHomepageContent,
   HomepageContent,
-  DEFAULT_HOMEPAGE_CONTENT
+  DEFAULT_HOMEPAGE_CONTENT,
+  BannerItem
 } from '../services/homepageContent';
 import { fetchInquiries, updateInquiryStatus, Inquiry } from '../services/inquiriesService';
+
+export interface HomepageSectionConfig {
+  id: string;
+  title: string;
+  shortDesc: string;
+  itemCountText: (content: HomepageContent) => string;
+  getThumbnailUrl: (content: HomepageContent) => string;
+  getThumbnailAlt: (content: HomepageContent) => string;
+}
+
+export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
+  {
+    id: 'hero',
+    title: 'Homepage Hero',
+    shortDesc: 'Manage desktop and mobile landing hero imagery displayed at the top of the homepage.',
+    itemCountText: (content) => `${content.hero?.banners?.length || 1} Banners`,
+    getThumbnailUrl: (content) => content.hero?.banners?.[0]?.desktop?.url || content.hero?.image?.url || '/images/hero/hero-banner.png',
+    getThumbnailAlt: (content) => content.hero?.banners?.[0]?.desktop?.alt || 'Homepage Hero',
+  },
+  {
+    id: 'about',
+    title: 'About Us',
+    shortDesc: 'Manage desktop and mobile banner imagery displayed on the About Us page.',
+    itemCountText: (content) => `${content.aboutBanner?.banners?.length || 1} Banners`,
+    getThumbnailUrl: (content) => content.aboutBanner?.banners?.[0]?.desktop?.url || content.aboutBanner?.image?.url || '/images/about-banner-bg.png',
+    getThumbnailAlt: (content) => content.aboutBanner?.banners?.[0]?.desktop?.alt || 'About Us Banner',
+  },
+  {
+    id: 'products',
+    title: 'Product Display',
+    shortDesc: 'Manage product card imagery used in the moving continuous marquee chain.',
+    itemCountText: (content) => `${content.products?.length || 5} Product Cards`,
+    getThumbnailUrl: (content) => content.products?.[0]?.image?.url || '/images/product-4.png',
+    getThumbnailAlt: (content) => content.products?.[0]?.title || 'Product Display',
+  },
+];
+
+interface BannerListEditorProps {
+  sectionTitle: string;
+  sectionKey: 'hero' | 'about';
+  banners: BannerItem[];
+  recommendedDesktopSpec: string;
+  recommendedMobileSpec: string;
+  onSaveBanners: (newBanners: BannerItem[]) => Promise<void>;
+  showNotification: (type: 'success' | 'error', message: string) => void;
+}
+
+export function BannerListEditor({
+  sectionTitle,
+  sectionKey,
+  banners,
+  recommendedDesktopSpec,
+  recommendedMobileSpec,
+  onSaveBanners,
+  showNotification
+}: BannerListEditorProps) {
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [uploadingState, setUploadingState] = useState<{ id: string; target: 'desktop' | 'mobile' } | null>(null);
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+
+  const formatOrder = (num: number) => (num < 10 ? `0${num}` : `${num}`);
+
+  const handleDragStart = (e: React.DragEvent, idx: number) => {
+    setDraggedIdx(idx);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === idx) return;
+    setDragOverIdx(idx);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIdx: number) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === dropIdx) {
+      setDraggedIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+
+    const updated = [...banners];
+    const [movedItem] = updated.splice(draggedIdx, 1);
+    updated.splice(dropIdx, 0, movedItem);
+
+    const reordered = updated.map((item, idx) => ({
+      ...item,
+      order: idx + 1,
+      updatedAt: Date.now()
+    }));
+
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+
+    try {
+      await onSaveBanners(reordered);
+      showNotification('success', `${sectionTitle}: Banner order updated.`);
+    } catch (err: any) {
+      showNotification('error', err.message || 'Failed to save banner order.');
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const handleAddNewBanner = async () => {
+    const newOrder = banners.length + 1;
+    const newBanner: BannerItem = {
+      id: `${sectionKey}-banner-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      order: newOrder,
+      desktop: { url: '', alt: `${sectionTitle} Banner ${newOrder}` },
+      mobile: { url: '', alt: `${sectionTitle} Mobile Banner ${newOrder}` },
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const updated = [...banners, newBanner];
+    try {
+      await onSaveBanners(updated);
+      showNotification('success', `${sectionTitle}: Added Banner ${formatOrder(newOrder)}.`);
+    } catch (err: any) {
+      showNotification('error', err.message || 'Failed to add banner.');
+    }
+  };
+
+  const handleDeleteBanner = async (item: BannerItem) => {
+    if (!window.confirm(`Are you sure you want to delete Banner ${formatOrder(item.order)}?`)) {
+      return;
+    }
+
+    const filtered = banners.filter((b) => b.id !== item.id);
+    const reordered = filtered.map((b, idx) => ({
+      ...b,
+      order: idx + 1,
+      updatedAt: Date.now()
+    }));
+
+    try {
+      await onSaveBanners(reordered);
+      showNotification('success', `${sectionTitle}: Banner ${formatOrder(item.order)} deleted.`);
+    } catch (err: any) {
+      showNotification('error', err.message || 'Failed to delete banner.');
+    }
+  };
+
+  const handleFileChange = async (
+    item: BannerItem,
+    targetType: 'desktop' | 'mobile',
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      showNotification('error', 'Image upload failed: File size exceeds 10MB limit.');
+      return;
+    }
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      showNotification('error', 'Image upload failed: Unsupported file type. Only JPG, PNG, and WebP are allowed.');
+      return;
+    }
+
+    setUploadingState({ id: item.id, target: targetType });
+    try {
+      const uploaded = await uploadAdminImage(file);
+
+      const updated = banners.map((b) => {
+        if (b.id === item.id) {
+          return {
+            ...b,
+            [targetType]: {
+              url: uploaded.url,
+              alt: `${sectionTitle} Banner ${formatOrder(b.order)} (${targetType})`,
+              updatedAt: Date.now()
+            },
+            updatedAt: Date.now()
+          };
+        }
+        return b;
+      });
+
+      await onSaveBanners(updated);
+      showNotification('success', `${sectionTitle}: Banner ${formatOrder(item.order)} ${targetType} image updated.`);
+    } catch (err: any) {
+      showNotification('error', err.message || 'Failed to upload image.');
+    } finally {
+      setUploadingState(null);
+      const key = `${item.id}-${targetType}`;
+      if (fileInputRefs.current[key]) {
+        fileInputRefs.current[key]!.value = '';
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-6 w-full">
+      <div className="space-y-4 w-full">
+        {banners.map((item, idx) => {
+          const isDragging = draggedIdx === idx;
+          const isOver = dragOverIdx === idx;
+          const isUploadingDesktop = uploadingState?.id === item.id && uploadingState.target === 'desktop';
+          const isUploadingMobile = uploadingState?.id === item.id && uploadingState.target === 'mobile';
+
+          return (
+            <div
+              key={item.id}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, idx)}
+              className={`glass-panel p-5 sm:p-6 rounded-2xl border transition-all duration-300 relative ${
+                isDragging
+                  ? 'opacity-40 border-dashed border-primary scale-[0.99]'
+                  : isOver
+                  ? 'border-2 border-primary bg-primary/5 shadow-lg scale-[1.01]'
+                  : 'border-white/60 hover:border-primary/40 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] bg-white/30'
+              }`}
+            >
+              {/* Header: Order Number, Drag Handle, Title, Delete Action */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-outline-variant/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-headline-md font-extrabold text-base shrink-0 shadow-inner">
+                    {formatOrder(idx + 1)}
+                  </div>
+
+                  <div
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    className="p-2 rounded-lg bg-white/60 hover:bg-primary/10 border border-white/80 cursor-grab active:cursor-grabbing text-primary/70 hover:text-primary transition-all flex flex-col gap-1 items-center justify-center select-none shadow-sm"
+                    title="Hold and drag to reorder"
+                  >
+                    <div className="flex gap-1 pointer-events-none">
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                    </div>
+                    <div className="flex gap-1 pointer-events-none">
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                    </div>
+                  </div>
+
+                  <span className="font-headline-md text-sm font-bold text-primary uppercase tracking-wider">
+                    BANNER ITEM {formatOrder(idx + 1)}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteBanner(item)}
+                  className="px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-500 hover:text-white font-label-sm text-xs uppercase tracking-wider font-bold transition-colors flex items-center gap-1.5 cursor-pointer ml-auto"
+                >
+                  <span className="material-symbols-outlined text-sm">delete</span>
+                  <span>DELETE BANNER</span>
+                </button>
+              </div>
+
+              {/* Banner Previews Container */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Desktop Banner Column */}
+                <div className="lg:col-span-7 space-y-3 min-w-0">
+                  <div className="flex justify-between items-center flex-wrap gap-2">
+                    <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider">
+                      CURRENT DESKTOP BANNER
+                    </span>
+                    <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                      {recommendedDesktopSpec}
+                    </span>
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current[`${item.id}-desktop`] = el)}
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(item, 'desktop', e)}
+                  />
+
+                  <button
+                    disabled={isUploadingDesktop}
+                    onClick={() => fileInputRefs.current[`${item.id}-desktop`]?.click()}
+                    className="w-full py-2.5 px-4 rounded-xl border border-primary text-primary hover:bg-primary hover:text-white font-label-sm text-xs uppercase tracking-widest font-bold transition-all shadow-sm active:scale-98 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {isUploadingDesktop ? 'sync' : 'upload_file'}
+                    </span>
+                    <span>
+                      {isUploadingDesktop
+                        ? 'UPLOADING...'
+                        : item.desktop.url
+                        ? 'CHANGE DESKTOP IMAGE'
+                        : 'UPLOAD DESKTOP IMAGE'}
+                    </span>
+                  </button>
+
+                  <div className="w-full aspect-[1920/650] max-h-[280px] rounded-xl overflow-hidden bg-black/5 border border-white/70 shadow-inner relative flex items-center justify-center">
+                    {item.desktop.url ? (
+                      <img
+                        src={item.desktop.url}
+                        alt={item.desktop.alt || `Banner ${formatOrder(idx + 1)} Desktop`}
+                        className="w-full h-full object-contain block"
+                      />
+                    ) : (
+                      <div className="text-center p-6">
+                        <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-1">
+                          desktop_windows
+                        </span>
+                        <span className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider">
+                          No Desktop Image Uploaded
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mobile Banner Column */}
+                <div className="lg:col-span-5 space-y-3 min-w-0">
+                  <div className="flex justify-between items-center flex-wrap gap-2">
+                    <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider">
+                      CURRENT MOBILE BANNER
+                    </span>
+                    <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                      {recommendedMobileSpec}
+                    </span>
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current[`${item.id}-mobile`] = el)}
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(item, 'mobile', e)}
+                  />
+
+                  <button
+                    disabled={isUploadingMobile}
+                    onClick={() => fileInputRefs.current[`${item.id}-mobile`]?.click()}
+                    className="w-full py-2.5 px-4 rounded-xl border border-primary text-primary hover:bg-primary hover:text-white font-label-sm text-xs uppercase tracking-widest font-bold transition-all shadow-sm active:scale-98 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {isUploadingMobile ? 'sync' : 'smartphone'}
+                    </span>
+                    <span>
+                      {isUploadingMobile
+                        ? 'UPLOADING...'
+                        : item.mobile.url
+                        ? 'CHANGE MOBILE IMAGE'
+                        : 'UPLOAD MOBILE IMAGE'}
+                    </span>
+                  </button>
+
+                  <div className="w-full aspect-[535/378] max-h-[280px] rounded-xl overflow-hidden bg-black/5 border border-white/70 shadow-inner relative flex items-center justify-center">
+                    {item.mobile.url ? (
+                      <img
+                        src={item.mobile.url}
+                        alt={item.mobile.alt || `Banner ${formatOrder(idx + 1)} Mobile`}
+                        className="w-full h-full object-contain block"
+                      />
+                    ) : (
+                      <div className="text-center p-6">
+                        <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-1">
+                          smartphone
+                        </span>
+                        <span className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider">
+                          No Mobile Image Uploaded
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={handleAddNewBanner}
+          className="w-full py-3.5 px-6 rounded-2xl border-2 border-dashed border-primary/40 bg-white/40 hover:bg-primary/10 hover:border-primary text-primary font-label-sm text-xs uppercase tracking-widest font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-lg">add_circle</span>
+          <span>+ ADD NEW BANNER</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'homepage' | 'video' | 'leads' | 'marketplace'>('homepage');
+  const [activeHomepageSection, setActiveHomepageSection] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<'hero' | 'about' | 'products' | null>('hero');
+
+  useEffect(() => {
+    setActiveHomepageSection(null);
+  }, [activeTab]);
   
   // Inquiries CMS state
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -590,7 +997,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="flex-grow pt-32 pb-24 max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop w-full">
+      <main className="flex-grow pt-28 pb-24 w-full px-4 sm:px-6 lg:px-8">
         
         {/* Status Notification Toast */}
         {statusNotification && (
@@ -606,30 +1013,30 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="flex flex-col lg:flex-row gap-8 items-start w-full">
           
-          {/* Admin Sidebar */}
-          <aside className="lg:col-span-1">
-            <div className="glass-panel p-8 rounded-2xl text-center sticky top-32 border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-              <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-primary-fixed to-secondary-fixed flex items-center justify-center text-primary font-headline-md text-headline-md mb-4 shadow-inner border border-white/50">
+          {/* Admin Sidebar - Anchored to Far Left */}
+          <aside className="w-full lg:w-64 xl:w-72 lg:shrink-0">
+            <div className="glass-panel p-6 sm:p-8 rounded-2xl text-center sticky top-28 border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-full bg-gradient-to-br from-primary-fixed to-secondary-fixed flex items-center justify-center text-primary font-headline-md text-headline-md mb-4 shadow-inner border border-white/50">
                 A
               </div>
-              <h1 className="font-headline-md text-headline-md text-primary mb-1">Admin Portal</h1>
-              <p className="font-body-md text-body-md text-on-surface-variant text-sm mb-8">System Access</p>
+              <h1 className="font-headline-md text-xl sm:text-2xl text-primary mb-1 font-bold">Admin Portal</h1>
+              <p className="font-body-md text-on-surface-variant text-xs sm:text-sm mb-6 sm:mb-8">System Access</p>
               
               <nav className="flex flex-col gap-2 text-left">
-                <button onClick={() => setActiveTab('homepage')} className={`font-label-sm text-label-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'homepage' ? 'bg-primary text-white font-semibold shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
-                  <span className="material-symbols-outlined">tune</span> Homepage Content
+                <button onClick={() => setActiveTab('homepage')} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${activeTab === 'homepage' ? 'bg-primary text-white font-semibold shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
+                  <span className="material-symbols-outlined text-lg">tune</span> Homepage Content
                 </button>
-                <button onClick={() => setActiveTab('overview')} className={`font-label-sm text-label-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'overview' ? 'bg-white/40 text-primary font-semibold border border-white/50 shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
-                  <span className="material-symbols-outlined">dashboard</span> Overview
+                <button onClick={() => setActiveTab('overview')} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${activeTab === 'overview' ? 'bg-white/40 text-primary font-semibold border border-white/50 shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
+                  <span className="material-symbols-outlined text-lg">dashboard</span> Overview
                 </button>
-                <button onClick={() => setActiveTab('video')} className={`font-label-sm text-label-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'video' ? 'bg-white/40 text-primary font-semibold border border-white/50 shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
-                  <span className="material-symbols-outlined">movie</span> Hero Video
+                <button onClick={() => setActiveTab('video')} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${activeTab === 'video' ? 'bg-white/40 text-primary font-semibold border border-white/50 shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
+                  <span className="material-symbols-outlined text-lg">movie</span> Hero Video
                 </button>
-                <button onClick={() => { setActiveTab('leads'); loadInquiries(); }} className={`font-label-sm text-label-sm uppercase tracking-widest p-3 rounded-lg flex items-center justify-between transition-colors ${activeTab === 'leads' ? 'bg-primary text-white font-semibold shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
+                <button onClick={() => { setActiveTab('leads'); loadInquiries(); }} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${activeTab === 'leads' ? 'bg-primary text-white font-semibold shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-secondary">inbox</span>
+                    <span className="material-symbols-outlined text-lg text-secondary">inbox</span>
                     <span>Inquiries</span>
                   </div>
                   {newInquiriesCount > 0 && (
@@ -638,684 +1045,339 @@ export default function AdminDashboard() {
                     </span>
                   )}
                 </button>
-                <button onClick={() => setActiveTab('marketplace')} className={`font-label-sm text-label-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === 'marketplace' ? 'bg-white/40 text-primary font-semibold border border-white/50 shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
-                  <span className="material-symbols-outlined">science</span> Marketplace
+                <button onClick={() => setActiveTab('marketplace')} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${activeTab === 'marketplace' ? 'bg-white/40 text-primary font-semibold border border-white/50 shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
+                  <span className="material-symbols-outlined text-lg">science</span> Marketplace
                 </button>
-                <button onClick={handleSignOut} className="font-label-sm text-label-sm uppercase tracking-widest p-3 rounded-lg text-error hover:bg-error/10 transition-colors flex items-center gap-3 mt-8">
-                  <span className="material-symbols-outlined text-outline">logout</span> Sign Out
+                <button onClick={handleSignOut} className="font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg text-error hover:bg-error/10 transition-colors flex items-center gap-3 mt-6 sm:mt-8 cursor-pointer">
+                  <span className="material-symbols-outlined text-lg text-outline">logout</span> Sign Out
                 </button>
               </nav>
             </div>
           </aside>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3 space-y-8">
+          {/* Main Content Area - Full Remaining Horizontal Space */}
+          <div className="flex-1 min-w-0 w-full space-y-8">
             
             {/* HOMEPAGE CONTENT SECTION */}
             {activeTab === 'homepage' && (
-              <div className="space-y-8">
-                
-                {/* Header Card */}
-                <div className="glass-panel p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)] flex justify-between items-center">
-                  <div>
-                    <h1 className="font-headline-md text-headline-md text-primary mb-1">HOMEPAGE CONTENT</h1>
-                    <p className="font-body-md text-on-surface-variant text-sm">
-                      Manage the images displayed on the public homepage.
-                    </p>
-                  </div>
-                  <a 
-                    href="/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="btn-primary text-sm py-2.5 px-4 inline-flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-base">visibility</span> Preview Homepage
-                  </a>
-                </div>
-
+              <div className="space-y-6 w-full">
                 {isLoadingCms ? (
                   <div className="glass-panel p-12 rounded-2xl text-center">
                     <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-on-surface-variant text-sm font-label-sm uppercase tracking-widest">Loading Published Content...</p>
                   </div>
                 ) : (
-                  <>
-                    {/* SECTION 1 — HERO BANNER */}
-                    <section className="glass-panel p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-                      <div className="flex justify-between items-center mb-6 border-b border-outline-variant/50 pb-4">
-                        <div>
-                          <h2 className="font-headline-md text-xl text-primary font-bold uppercase tracking-wide">HERO BANNER</h2>
-                          <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">Public Landing Page Main Visual (1920x650 Frame)</span>
-                        </div>
-                        <span className="font-label-sm text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-primary text-white">
-                          ● Published
-                        </span>
+                  <div className="space-y-6 w-full">
+                    {/* Header Card */}
+                    <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h1 className="font-headline-md text-2xl text-primary font-bold uppercase tracking-wide">HOMEPAGE CONTENT</h1>
+                        <p className="font-body-md text-on-surface-variant text-sm mt-1">
+                          Manage homepage imagery and content sections using the expandable editor list below.
+                        </p>
                       </div>
+                      <a 
+                        href="/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn-primary text-xs py-2.5 px-4 inline-flex items-center gap-2 self-start sm:self-auto shrink-0 uppercase tracking-wider font-bold"
+                      >
+                        <span className="material-symbols-outlined text-base">visibility</span> Preview Homepage
+                      </a>
+                    </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Current Image */}
-                        <div className="space-y-3">
-                          <span className="font-label-sm text-xs text-primary uppercase tracking-widest block font-bold">
-                            Current Published Image
-                          </span>
-                          <div className="aspect-[1920/650] w-full rounded-xl overflow-hidden bg-black/10 border border-white/40 shadow-sm relative group">
-                            <img 
-                              src={cmsContent.hero.image.url} 
-                              alt="Current Hero Banner" 
-                              className="w-full h-full object-cover"
+                    {/* EXPANDABLE VERTICAL LIST (ACCORDION) */}
+                    <div className="space-y-4 w-full">                      {/* 1. HOMEPAGE HERO SECTION */}
+                      <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
+                        {/* Collapsed/Expanded Row Header */}
+                        <div
+                          onClick={() => setExpandedSection(prev => prev === 'hero' ? null : 'hero')}
+                          className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/40 transition-colors bg-white/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* SINGLE FIRST / DESKTOP BANNER THUMBNAIL */}
+                            <div className="w-28 sm:w-40 aspect-[1920/650] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
+                              <img 
+                                src={cmsContent.hero?.banners?.[0]?.desktop?.url || cmsContent.hero?.image?.url || '/images/hero/hero-banner.png'} 
+                                alt="Homepage Hero Desktop Banner Preview" 
+                                className="w-full h-full object-contain block bg-black/5"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">Homepage Hero</h2>
+                                <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                                  {cmsContent.hero?.banners?.length || 1} Banners
+                                </span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant mt-1 truncate">
+                                Desktop & Mobile main landing hero imagery
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider hidden sm:inline-block">
+                              {expandedSection === 'hero' ? 'Collapse' : 'Expand'}
+                            </span>
+                            <div className="w-8 h-8 rounded-full bg-white/60 border border-white/80 flex items-center justify-center text-primary shadow-sm">
+                              <span className="material-symbols-outlined text-xl transition-transform duration-300 font-bold">
+                                {expandedSection === 'hero' ? 'expand_less' : 'expand_more'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded Content Body */}
+                        {expandedSection === 'hero' && (
+                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-8 bg-white/20 transition-all duration-300">
+                            <BannerListEditor
+                              sectionTitle="Homepage Hero"
+                              sectionKey="hero"
+                              banners={cmsContent.hero?.banners || []}
+                              recommendedDesktopSpec="RECOMMENDED: 1920 × 650 PX"
+                              recommendedMobileSpec="RECOMMENDED: 535 × 378 PX"
+                              onSaveBanners={async (newBanners) => {
+                                const updatedContent: HomepageContent = {
+                                  ...cmsContent,
+                                  hero: {
+                                    ...cmsContent.hero,
+                                    image: newBanners[0]?.desktop || cmsContent.hero.image,
+                                    banners: newBanners
+                                  },
+                                  mobileHero: {
+                                    image: newBanners[0]?.mobile || cmsContent.mobileHero?.image || cmsContent.hero.image
+                                  }
+                                };
+                                await savePublishedHomepageContent(updatedContent);
+                                setCmsContent(updatedContent);
+                              }}
+                              showNotification={showNotification}
                             />
                           </div>
-                          <p className="text-xs text-on-surface-variant font-mono truncate bg-white/40 p-2 rounded border border-white/50">
-                            {cmsContent.hero.image.url}
-                          </p>
-                        </div>
-
-                        {/* New Image Selection / Preview */}
-                        <div className="space-y-3 flex flex-col">
-                          <span className="font-label-sm text-xs text-primary uppercase tracking-widest block font-bold">
-                            New Image Selection
-                          </span>
-                          {heroNewPreview ? (
-                            <div className="space-y-3 flex-grow flex flex-col">
-                              <div className="aspect-[1920/650] w-full rounded-xl overflow-hidden bg-black/10 border-2 border-primary shadow-md relative">
-                                <img 
-                                  src={heroNewPreview} 
-                                  alt="New Hero Banner Preview" 
-                                  className="w-full h-full object-cover"
-                                />
-                                <span className="absolute top-2 right-2 bg-primary text-white text-[10px] font-label-sm uppercase tracking-widest px-2 py-0.5 rounded shadow">
-                                  New Preview
-                                </span>
-                              </div>
-                              <div className="flex gap-3 pt-2 mt-auto">
-                                <button
-                                  disabled={isPublishingHero}
-                                  onClick={handlePublishHero}
-                                  className="flex-1 btn-primary py-2.5 px-4 text-sm disabled:opacity-50"
-                                >
-                                  {isPublishingHero ? 'Publishing...' : 'Save & Publish Banner'}
-                                </button>
-                                <button
-                                  disabled={isPublishingHero}
-                                  onClick={handleCancelHeroChange}
-                                  className="px-4 py-2.5 rounded-xl border border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex-grow border-2 border-dashed border-white/60 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-white/20 hover:bg-white/30 transition-colors">
-                              <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-2">add_photo_alternate</span>
-                              <p className="font-body-md text-sm text-primary font-semibold mb-1">Upload New Hero Banner</p>
-                              <p className="font-body-md text-xs text-on-surface-variant mb-4">JPG, PNG, or WebP up to 10MB</p>
-                              <input 
-                                type="file" 
-                                ref={heroFileInputRef} 
-                                accept="image/jpeg,image/png,image/webp" 
-                                className="hidden" 
-                                onChange={handleHeroFileSelect}
-                              />
-                              <button
-                                onClick={() => heroFileInputRef.current?.click()}
-                                className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors"
-                              >
-                                Change Image
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* SECTION 1B — MOBILE HOMEPAGE BANNER (535x378) */}
-                    <section className="glass-panel p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-                      <div className="flex justify-between items-center mb-6 border-b border-outline-variant/50 pb-4">
-                        <div>
-                          <h2 className="font-headline-md text-xl text-primary font-bold uppercase tracking-wide">MOBILE HOMEPAGE BANNER</h2>
-                          <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">Aspect Ratio 535x378 (Mobile Viewport)</span>
-                        </div>
-                        <span className="font-label-sm text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-primary text-white">
-                          Mobile View
-                        </span>
+                        )}
                       </div>
 
-                      <div className="space-y-6">
-                        <div className="flex flex-col md:flex-row gap-8 items-start">
-                          {/* Current Mobile Image */}
-                          <div className="w-full md:w-1/2">
-                            <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                              Current Mobile Banner
-                            </span>
-                            <div className="aspect-[535/378] w-full rounded-xl overflow-hidden bg-black/10 border border-white/60 shadow-sm relative">
+                      {/* 2. ABOUT US SECTION */}
+                      <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
+                        {/* Collapsed/Expanded Row Header */}
+                        <div
+                          onClick={() => setExpandedSection(prev => prev === 'about' ? null : 'about')}
+                          className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/40 transition-colors bg-white/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* SINGLE FIRST / DESKTOP BANNER THUMBNAIL */}
+                            <div className="w-28 sm:w-40 aspect-[1920/650] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
                               <img 
-                                src={cmsContent.mobileHero?.image?.url || cmsContent.hero.image.url} 
-                                alt={cmsContent.mobileHero?.image?.alt || cmsContent.hero.image.alt}
-                                className="w-full h-full object-cover"
+                                src={cmsContent.aboutBanner?.banners?.[0]?.desktop?.url || cmsContent.aboutBanner?.image?.url || '/images/about-banner-bg.png'} 
+                                alt="About Us Desktop Banner Preview" 
+                                className="w-full h-full object-contain block bg-black/5"
                               />
                             </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">About Us</h2>
+                                <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                                  {cmsContent.aboutBanner?.banners?.length || 1} Banners
+                                </span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant mt-1 truncate">
+                                Desktop & Mobile background banner imagery for /about page
+                              </p>
+                            </div>
                           </div>
 
-                          {/* Update / New Mobile Image Preview */}
-                          <div className="w-full md:w-1/2">
-                            <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                              {mobileHeroNewPreview ? 'New Mobile Banner Preview' : 'Update Mobile Banner'}
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider hidden sm:inline-block">
+                              {expandedSection === 'about' ? 'Collapse' : 'Expand'}
                             </span>
-
-                            {mobileHeroNewPreview ? (
-                              <div className="space-y-4">
-                                <div className="aspect-[535/378] w-full rounded-xl overflow-hidden bg-black/10 border-2 border-primary shadow-md relative">
-                                  <img 
-                                    src={mobileHeroNewPreview} 
-                                    alt="New Mobile Banner Preview" 
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                                <div className="flex gap-3">
-                                  <button
-                                    disabled={isPublishingMobileHero}
-                                    onClick={handlePublishMobileHero}
-                                    className="flex-1 btn-primary py-2.5 px-4 text-xs uppercase tracking-wider disabled:opacity-50"
-                                  >
-                                    {isPublishingMobileHero ? 'Publishing...' : 'Save Mobile Banner'}
-                                  </button>
-                                  <button
-                                    disabled={isPublishingMobileHero}
-                                    onClick={handleCancelMobileHeroChange}
-                                    className="px-4 py-2.5 rounded-xl border border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="h-full min-h-[180px] border-2 border-dashed border-white/60 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-white/20 hover:bg-white/30 transition-colors">
-                                <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-2">phone_iphone</span>
-                                <p className="font-body-md text-sm text-primary font-semibold mb-1">Upload New Mobile Banner (535x378)</p>
-                                <p className="font-body-md text-xs text-on-surface-variant mb-4">JPG, PNG, or WebP up to 10MB</p>
-                                <input 
-                                  type="file" 
-                                  ref={mobileHeroFileInputRef} 
-                                  accept="image/jpeg,image/png,image/webp" 
-                                  className="hidden" 
-                                  onChange={handleMobileHeroFileSelect}
-                                />
-                                <button
-                                  onClick={() => mobileHeroFileInputRef.current?.click()}
-                                  className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors"
-                                >
-                                  Change Mobile Image
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* SECTION 1C — ABOUT US PAGE BANNERS (DESKTOP & MOBILE) */}
-                    <section className="glass-panel p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-                      <div className="flex justify-between items-center mb-6 border-b border-outline-variant/50 pb-4">
-                        <div>
-                          <h2 className="font-headline-md text-xl text-primary font-bold uppercase tracking-wide">ABOUT US PAGE BANNERS</h2>
-                          <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">Desktop & Mobile Banner Images for /about Page</span>
-                        </div>
-                        <span className="font-label-sm text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-secondary text-white">
-                          About Page
-                        </span>
-                      </div>
-
-                      <div className="space-y-8">
-                        {/* 1. Desktop Banner */}
-                        <div className="border-b border-outline-variant/30 pb-6">
-                          <span className="font-label-sm text-xs text-primary uppercase tracking-widest block font-bold mb-4">
-                            Desktop About Us Banner Image
-                          </span>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Current Image */}
-                            <div>
-                              <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                Current Desktop Banner
+                            <div className="w-8 h-8 rounded-full bg-white/60 border border-white/80 flex items-center justify-center text-primary shadow-sm">
+                              <span className="material-symbols-outlined text-xl transition-transform duration-300 font-bold">
+                                {expandedSection === 'about' ? 'expand_less' : 'expand_more'}
                               </span>
-                              <div className="aspect-[1920/650] w-full rounded-xl overflow-hidden bg-black/10 border border-white/60 shadow-sm relative">
-                                <img 
-                                  src={cmsContent.aboutBanner?.image?.url || '/images/about-banner-bg.png'} 
-                                  alt="Current About Desktop Banner" 
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            </div>
-
-                            {/* New Image Selection / Preview */}
-                            <div>
-                              <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                {aboutBannerNewPreview ? 'New Preview' : 'Update Desktop Banner'}
-                              </span>
-
-                              {aboutBannerNewPreview ? (
-                                <div className="space-y-3">
-                                  <div className="aspect-[1920/650] w-full rounded-xl overflow-hidden bg-black/10 border-2 border-primary shadow-md relative">
-                                    <img 
-                                      src={aboutBannerNewPreview} 
-                                      alt="New About Desktop Preview" 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                  <div className="flex gap-3">
-                                    <button
-                                      disabled={isPublishingAboutBanner}
-                                      onClick={handlePublishAboutBanner}
-                                      className="flex-1 btn-primary py-2.5 px-4 text-xs uppercase tracking-wider disabled:opacity-50"
-                                    >
-                                      {isPublishingAboutBanner ? 'Publishing...' : 'Save Desktop Banner'}
-                                    </button>
-                                    <button
-                                      disabled={isPublishingAboutBanner}
-                                      onClick={handleCancelAboutBannerChange}
-                                      className="px-4 py-2.5 rounded-xl border border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="h-full min-h-[160px] border-2 border-dashed border-white/60 rounded-xl p-6 flex flex-col items-center justify-center text-center bg-white/20 hover:bg-white/30 transition-colors">
-                                  <span className="material-symbols-outlined text-3xl text-on-surface-variant mb-2">desktop_windows</span>
-                                  <p className="font-body-md text-xs text-primary font-semibold mb-1">Upload New Desktop Banner</p>
-                                  <input 
-                                    type="file" 
-                                    ref={aboutBannerFileInputRef} 
-                                    accept="image/jpeg,image/png,image/webp" 
-                                    className="hidden" 
-                                    onChange={handleAboutBannerFileSelect}
-                                  />
-                                  <button
-                                    onClick={() => aboutBannerFileInputRef.current?.click()}
-                                    className="font-label-sm text-[11px] text-primary uppercase tracking-widest border border-primary px-3 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-colors mt-2"
-                                  >
-                                    Change Desktop Image
-                                  </button>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
 
-                        {/* 2. Mobile Banner */}
-                        <div>
-                          <span className="font-label-sm text-xs text-primary uppercase tracking-widest block font-bold mb-4">
-                            Mobile About Us Banner Image
-                          </span>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Current Mobile Image */}
-                            <div>
-                              <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                Current Mobile Banner
-                              </span>
-                              <div className="aspect-[535/378] w-full rounded-xl overflow-hidden bg-black/10 border border-white/60 shadow-sm relative">
-                                <img 
-                                  src={cmsContent.aboutMobileBanner?.image?.url || cmsContent.aboutBanner?.image?.url || '/images/about-banner-bg.png'} 
-                                  alt="Current About Mobile Banner" 
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
+                        {/* Expanded Content Body */}
+                        {expandedSection === 'about' && (
+                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-8 bg-white/20 transition-all duration-300">
+                            <BannerListEditor
+                              sectionTitle="About Us"
+                              sectionKey="about"
+                              banners={cmsContent.aboutBanner?.banners || []}
+                              recommendedDesktopSpec="RECOMMENDED: 1900 × 840 PX"
+                              recommendedMobileSpec="RECOMMENDED: 535 × 378 PX"
+                              onSaveBanners={async (newBanners) => {
+                                const updatedContent: HomepageContent = {
+                                  ...cmsContent,
+                                  aboutBanner: {
+                                    ...cmsContent.aboutBanner,
+                                    image: newBanners[0]?.desktop || cmsContent.aboutBanner?.image,
+                                    banners: newBanners
+                                  },
+                                  aboutMobileBanner: {
+                                    image: newBanners[0]?.mobile || cmsContent.aboutMobileBanner?.image
+                                  }
+                                };
+                                await savePublishedHomepageContent(updatedContent);
+                                setCmsContent(updatedContent);
+                              }}
+                              showNotification={showNotification}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. PRODUCT DISPLAY SECTION */}
+                      <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
+                        {/* Collapsed/Expanded Row Header */}
+                        <div
+                          onClick={() => setExpandedSection(prev => prev === 'products' ? null : 'products')}
+                          className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/40 transition-colors bg-white/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* SINGLE PRODUCT DISPLAY THUMBNAIL */}
+                            <div className="w-20 sm:w-28 aspect-[16/10] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
+                              <img 
+                                src={cmsContent.products?.[0]?.image?.url || '/images/product-4.png'} 
+                                alt="Product Display Preview" 
+                                className="w-full h-full object-contain block bg-black/5"
+                              />
                             </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">Product Display</h2>
+                                <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-secondary text-white font-bold">
+                                  5 Product Cards
+                                </span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant mt-1 truncate">
+                                Continuous moving marquee product cards (5 products)
+                              </p>
+                            </div>
+                          </div>
 
-                            {/* New Image Selection / Preview */}
-                            <div>
-                              <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                {aboutMobileBannerNewPreview ? 'New Preview' : 'Update Mobile Banner'}
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider hidden sm:inline-block">
+                              {expandedSection === 'products' ? 'Collapse' : 'Expand'}
+                            </span>
+                            <div className="w-8 h-8 rounded-full bg-white/60 border border-white/80 flex items-center justify-center text-primary shadow-sm">
+                              <span className="material-symbols-outlined text-xl transition-transform duration-300 font-bold">
+                                {expandedSection === 'products' ? 'expand_less' : 'expand_more'}
                               </span>
-
-                              {aboutMobileBannerNewPreview ? (
-                                <div className="space-y-3">
-                                  <div className="aspect-[535/378] w-full rounded-xl overflow-hidden bg-black/10 border-2 border-primary shadow-md relative">
-                                    <img 
-                                      src={aboutMobileBannerNewPreview} 
-                                      alt="New About Mobile Preview" 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                  <div className="flex gap-3">
-                                    <button
-                                      disabled={isPublishingAboutMobileBanner}
-                                      onClick={handlePublishAboutMobileBanner}
-                                      className="flex-1 btn-primary py-2.5 px-4 text-xs uppercase tracking-wider disabled:opacity-50"
-                                    >
-                                      {isPublishingAboutMobileBanner ? 'Publishing...' : 'Save Mobile Banner'}
-                                    </button>
-                                    <button
-                                      disabled={isPublishingAboutMobileBanner}
-                                      onClick={handleCancelAboutMobileBannerChange}
-                                      className="px-4 py-2.5 rounded-xl border border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="h-full min-h-[160px] border-2 border-dashed border-white/60 rounded-xl p-6 flex flex-col items-center justify-center text-center bg-white/20 hover:bg-white/30 transition-colors">
-                                  <span className="material-symbols-outlined text-3xl text-on-surface-variant mb-2">smartphone</span>
-                                  <p className="font-body-md text-xs text-primary font-semibold mb-1">Upload New Mobile Banner</p>
-                                  <input 
-                                    type="file" 
-                                    ref={aboutMobileBannerFileInputRef} 
-                                    accept="image/jpeg,image/png,image/webp" 
-                                    className="hidden" 
-                                    onChange={handleAboutMobileBannerFileSelect}
-                                  />
-                                  <button
-                                    onClick={() => aboutMobileBannerFileInputRef.current?.click()}
-                                    className="font-label-sm text-[11px] text-primary uppercase tracking-widest border border-primary px-3 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-colors mt-2"
-                                  >
-                                    Change Mobile Image
-                                  </button>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </section>
 
-                    {/* SECTION 2 — PRODUCT DISPLAY */}
-                    <section className="glass-panel p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-                      <div className="flex justify-between items-center mb-6 border-b border-outline-variant/50 pb-4">
-                        <div>
-                          <h2 className="font-headline-md text-xl text-primary font-bold uppercase tracking-wide">PRODUCT DISPLAY</h2>
-                          <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">Continuous Marquee Cards (5 Products)</span>
-                        </div>
-                        <span className="font-label-sm text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-secondary text-white">
-                          5 Active Cards
-                        </span>
-                      </div>
-
-                      <div className="space-y-6">
-                        {cmsContent.products.map((product, idx) => {
-                          const newPreview = productNewPreviews[product.id];
-                          const newFile = productNewFiles[product.id];
-                          const isPublishing = publishingProductId === product.id;
-
-                          return (
-                            <div key={product.id} className="bg-white/30 rounded-xl p-6 border border-white/50 shadow-sm transition-all hover:border-white/80">
-                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-outline-variant/30">
-                                <div>
-                                  <span className="font-label-sm text-[11px] uppercase tracking-widest text-secondary font-bold">
-                                    PRODUCT 0{idx + 1} • {product.category}
-                                  </span>
-                                  <h3 className="font-headline-md text-lg text-primary font-bold">{product.title}</h3>
-                                </div>
-                                <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant/70 bg-white/40 px-2.5 py-1 rounded border border-white/60">
-                                  ID: {product.id}
+                        {/* Expanded Content Body */}
+                        {expandedSection === 'products' && (
+                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-6 bg-white/20 transition-all duration-300">
+                            <div className="flex justify-between items-center border-b border-outline-variant/30 pb-4">
+                              <div>
+                                <h3 className="font-headline-md text-base text-primary font-bold uppercase tracking-wide">
+                                  Leading White & Private labelling Manufacturer
+                                </h3>
+                                <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">
+                                  Continuous Moving Marquee Product Cards (5 Active Cards)
                                 </span>
                               </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                                {/* Current Image */}
-                                <div>
-                                  <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                    Current Image
-                                  </span>
-                                  <div className="aspect-[16/10] w-full max-w-sm rounded-lg overflow-hidden bg-black/10 border border-white/40 shadow-sm relative">
-                                    <img 
-                                      src={product.image.url} 
-                                      alt={product.title} 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                </div>
-
-                                {/* Change / New Image */}
-                                <div>
-                                  <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                    {newPreview ? 'New Image Preview' : 'Update Image'}
-                                  </span>
-
-                                  {newPreview ? (
-                                    <div className="space-y-3 max-w-sm">
-                                      <div className="aspect-[16/10] w-full rounded-lg overflow-hidden bg-black/10 border-2 border-primary shadow-md relative">
-                                        <img 
-                                          src={newPreview} 
-                                          alt={`New ${product.title} Preview`} 
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <div className="flex gap-2">
-                                        <button
-                                          disabled={isPublishing}
-                                          onClick={() => handlePublishProduct(product.id)}
-                                          className="flex-1 btn-primary py-2 px-3 text-xs uppercase tracking-wider disabled:opacity-50"
-                                        >
-                                          {isPublishing ? 'Publishing...' : 'Save Product Image'}
-                                        </button>
-                                        <button
-                                          disabled={isPublishing}
-                                          onClick={() => handleCancelProductChange(product.id)}
-                                          className="px-3 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-sm text-[10px] uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div>
-                                      <input 
-                                        type="file" 
-                                        ref={el => productFileRefs.current[product.id] = el} 
-                                        accept="image/jpeg,image/png,image/webp" 
-                                        className="hidden" 
-                                        onChange={(e) => handleProductFileSelect(product.id, e)}
-                                      />
-                                      <button
-                                        onClick={() => productFileRefs.current[product.id]?.click()}
-                                        className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2.5 rounded-lg hover:bg-primary hover:text-white transition-colors inline-flex items-center gap-2 bg-white/40"
-                                      >
-                                        <span className="material-symbols-outlined text-base">photo_camera</span> Change Image
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </section>
 
-                    {/* SECTION 3 — MANUFACTURING CAPABILITIES */}
-                    <section className="glass-panel p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]">
-                      <div className="flex justify-between items-center mb-6 border-b border-outline-variant/50 pb-4">
-                        <div>
-                          <h2 className="font-headline-md text-xl text-primary font-bold uppercase tracking-wide">MANUFACTURING CAPABILITIES</h2>
-                          <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">Manage the images displayed when visitors explore manufacturing capabilities.</span>
-                        </div>
-                        <span className="font-label-sm text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-primary text-white">
-                          7 Managed Images
-                        </span>
-                      </div>
+                            <div className="space-y-6">
+                              {cmsContent.products.map((product, idx) => {
+                                const newPreview = productNewPreviews[product.id];
+                                const isPublishing = publishingProductId === product.id;
 
-                      <div className="space-y-6">
-                        {/* Main Fine Fragrance Entry */}
-                        {(() => {
-                          const capId = 'mainFineFragrance';
-                          const mainImg = cmsContent.capabilities?.mainFineFragrance || DEFAULT_HOMEPAGE_CONTENT.capabilities!.mainFineFragrance;
-                          const newPreview = capabilityNewPreviews[capId];
-                          const isPublishing = publishingCapabilityId === capId;
+                                return (
+                                  <div key={product.id} className="bg-white/40 rounded-xl p-5 border border-white/60 shadow-sm transition-all hover:border-white">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-3 border-b border-outline-variant/20">
+                                      <div>
+                                        <span className="font-label-sm text-[11px] uppercase tracking-widest text-secondary font-bold">
+                                          PRODUCT 0{idx + 1} • {product.category}
+                                        </span>
+                                        <h4 className="font-headline-md text-base text-primary font-bold">{product.title}</h4>
+                                      </div>
+                                      <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant/70 bg-white/50 px-2.5 py-1 rounded border border-white/60 shrink-0">
+                                        ID: {product.id}
+                                      </span>
+                                    </div>
 
-                          return (
-                            <div key={capId} className="bg-white/30 rounded-xl p-6 border border-white/50 shadow-sm transition-all hover:border-white/80">
-                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-outline-variant/30">
-                                <div>
-                                  <span className="font-label-sm text-[11px] uppercase tracking-widest text-secondary font-bold">
-                                    MAIN SHOWCASE IMAGE
-                                  </span>
-                                  <h3 className="font-headline-md text-lg text-primary font-bold">MAIN FINE FRAGRANCE IMAGE</h3>
-                                </div>
-                                <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant/80 bg-white/50 px-2.5 py-1 rounded border border-white/60 font-semibold">
-                                  Recommended: 1600 × 1000 px
-                                </span>
-                              </div>
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
+                                      <div className="min-w-0">
+                                        <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
+                                          Current Image
+                                        </span>
+                                        <div className="w-full max-w-xs aspect-[16/10] rounded-lg overflow-hidden bg-black/5 border border-white/60 shadow-inner relative flex items-center justify-center">
+                                          <img 
+                                            src={product.image.url} 
+                                            alt={product.title} 
+                                            className="w-full h-full object-contain block"
+                                          />
+                                        </div>
+                                      </div>
 
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                                <div>
-                                  <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                    Current Image
-                                  </span>
-                                  <div className="aspect-[16/10] w-full max-w-sm rounded-lg overflow-hidden bg-black/10 border border-white/40 shadow-sm relative">
-                                    <img 
-                                      src={mainImg.url} 
-                                      alt="Main Fine Fragrance" 
-                                      className="w-full h-full object-cover"
-                                    />
+                                      <div className="min-w-0">
+                                        <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
+                                          {newPreview ? 'New Image Preview' : 'Update Image'}
+                                        </span>
+
+                                        {newPreview ? (
+                                          <div className="space-y-3 max-w-xs">
+                                            <div className="w-full aspect-[16/10] rounded-lg overflow-hidden bg-black/5 border-2 border-primary shadow-md relative flex items-center justify-center">
+                                              <img 
+                                                src={newPreview} 
+                                                alt={`New ${product.title} Preview`} 
+                                                className="w-full h-full object-contain block"
+                                              />
+                                            </div>
+                                            <div className="flex gap-2">
+                                              <button
+                                                disabled={isPublishing}
+                                                onClick={() => handlePublishProduct(product.id)}
+                                                className="flex-1 btn-primary py-2 px-3 text-xs uppercase tracking-wider disabled:opacity-50"
+                                              >
+                                                {isPublishing ? 'Publishing...' : 'Save Image'}
+                                              </button>
+                                              <button
+                                                disabled={isPublishing}
+                                                onClick={() => handleCancelProductChange(product.id)}
+                                                className="px-3 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-sm text-[10px] uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
+                                              >
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div>
+                                            <input 
+                                              type="file" 
+                                              ref={el => productFileRefs.current[product.id] = el} 
+                                              accept="image/jpeg,image/png,image/webp" 
+                                              className="hidden" 
+                                              onChange={(e) => handleProductFileSelect(product.id, e)}
+                                            />
+                                            <button
+                                              onClick={() => productFileRefs.current[product.id]?.click()}
+                                              className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors inline-flex items-center gap-2 bg-white/50 cursor-pointer"
+                                            >
+                                              <span className="material-symbols-outlined text-base">photo_camera</span> Change Image
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-
-                                <div>
-                                  <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                    {newPreview ? 'New Image Preview' : 'Update Image'}
-                                  </span>
-
-                                  {newPreview ? (
-                                    <div className="space-y-3 max-w-sm">
-                                      <div className="aspect-[16/10] w-full rounded-lg overflow-hidden bg-black/10 border-2 border-primary shadow-md relative">
-                                        <img 
-                                          src={newPreview} 
-                                          alt="Main Fine Fragrance Preview" 
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <div className="flex gap-2">
-                                        <button
-                                          disabled={isPublishing}
-                                          onClick={() => handlePublishCapability(capId, 'Main Fine Fragrance')}
-                                          className="flex-1 btn-primary py-2 px-3 text-xs uppercase tracking-wider disabled:opacity-50"
-                                        >
-                                          {isPublishing ? 'Publishing...' : 'Save Image'}
-                                        </button>
-                                        <button
-                                          disabled={isPublishing}
-                                          onClick={() => handleCancelCapabilityChange(capId)}
-                                          className="px-3 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-sm text-[10px] uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div>
-                                      <input 
-                                        type="file" 
-                                        ref={el => capabilityFileRefs.current[capId] = el} 
-                                        accept="image/jpeg,image/png,image/webp" 
-                                        className="hidden" 
-                                        onChange={(e) => handleCapabilityFileSelect(capId, e)}
-                                      />
-                                      <button
-                                        onClick={() => capabilityFileRefs.current[capId]?.click()}
-                                        className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2.5 rounded-lg hover:bg-primary hover:text-white transition-colors inline-flex items-center gap-2 bg-white/40"
-                                      >
-                                        <span className="material-symbols-outlined text-base">photo_camera</span> Change Image
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })()}
-
-                        {/* 6 Capability Specific Items */}
-                        {(cmsContent.capabilities?.items || DEFAULT_HOMEPAGE_CONTENT.capabilities!.items).map((capItem, idx) => {
-                          const capId = capItem.id;
-                          const newPreview = capabilityNewPreviews[capId];
-                          const isPublishing = publishingCapabilityId === capId;
-
-                          return (
-                            <div key={capId} className="bg-white/30 rounded-xl p-6 border border-white/50 shadow-sm transition-all hover:border-white/80">
-                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-outline-variant/30">
-                                <div>
-                                  <span className="font-label-sm text-[11px] uppercase tracking-widest text-secondary font-bold">
-                                    0{idx + 1} — CAPABILITY ITEM
-                                  </span>
-                                  <h3 className="font-headline-md text-lg text-primary font-bold">{capItem.title}</h3>
-                                </div>
-                                <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant/80 bg-white/50 px-2.5 py-1 rounded border border-white/60 font-semibold">
-                                  Recommended: 1600 × 1000 px
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                                <div>
-                                  <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                    Current Image
-                                  </span>
-                                  <div className="aspect-[16/10] w-full max-w-sm rounded-lg overflow-hidden bg-black/10 border border-white/40 shadow-sm relative">
-                                    <img 
-                                      src={capItem.image.url} 
-                                      alt={capItem.title} 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                    {newPreview ? 'New Image Preview' : 'Update Image'}
-                                  </span>
-
-                                  {newPreview ? (
-                                    <div className="space-y-3 max-w-sm">
-                                      <div className="aspect-[16/10] w-full rounded-lg overflow-hidden bg-black/10 border-2 border-primary shadow-md relative">
-                                        <img 
-                                          src={newPreview} 
-                                          alt={`New ${capItem.title} Preview`} 
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <div className="flex gap-2">
-                                        <button
-                                          disabled={isPublishing}
-                                          onClick={() => handlePublishCapability(capId, capItem.title)}
-                                          className="flex-1 btn-primary py-2 px-3 text-xs uppercase tracking-wider disabled:opacity-50"
-                                        >
-                                          {isPublishing ? 'Publishing...' : 'Save Capability Image'}
-                                        </button>
-                                        <button
-                                          disabled={isPublishing}
-                                          onClick={() => handleCancelCapabilityChange(capId)}
-                                          className="px-3 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-sm text-[10px] uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div>
-                                      <input 
-                                        type="file" 
-                                        ref={el => capabilityFileRefs.current[capId] = el} 
-                                        accept="image/jpeg,image/png,image/webp" 
-                                        className="hidden" 
-                                        onChange={(e) => handleCapabilityFileSelect(capId, e)}
-                                      />
-                                      <button
-                                        onClick={() => capabilityFileRefs.current[capId]?.click()}
-                                        className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2.5 rounded-lg hover:bg-primary hover:text-white transition-colors inline-flex items-center gap-2 bg-white/40"
-                                      >
-                                        <span className="material-symbols-outlined text-base">photo_camera</span> Change Image
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                          </div>
+                        )}
                       </div>
-                    </section>
-                  </>
+
+                    </div>
+                  </div>
                 )}
-
               </div>
             )}
 

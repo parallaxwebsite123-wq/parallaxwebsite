@@ -160,11 +160,38 @@ export default function Home() {
       .catch((err) => console.error("Failed to load homepage content:", err));
   }, []);
 
-  const heroImageSrc = content?.hero?.image?.url || "/images/hero/hero-banner.png";
-  const heroImageAlt = content?.hero?.image?.alt || "Our Preciously Curated Gift Collection - Parallax Perfumery";
+  const heroBanners = content?.hero?.banners && content.hero.banners.length > 0
+    ? content.hero.banners
+    : [
+        {
+          id: 'hero-default',
+          order: 1,
+          desktop: {
+            url: content?.hero?.image?.url || '/images/hero/hero-banner.png',
+            alt: content?.hero?.image?.alt || 'Our Preciously Curated Gift Collection - Parallax Perfumery'
+          },
+          mobile: {
+            url: content?.mobileHero?.image?.url || content?.hero?.image?.url || '/images/hero/mobile-hero-banner.png',
+            alt: content?.mobileHero?.image?.alt || 'Our Preciously Curated Gift Collection - Parallax Perfumery (Mobile)'
+          }
+        }
+      ];
 
-  const mobileHeroImageSrc = content?.mobileHero?.image?.url || heroImageSrc;
-  const mobileHeroImageAlt = content?.mobileHero?.image?.alt || heroImageAlt;
+  const [currentHeroIdx, setCurrentHeroIdx] = useState(0);
+
+  useEffect(() => {
+    if (heroBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentHeroIdx((prev) => (prev + 1) % heroBanners.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [heroBanners.length]);
+
+  const activeHeroBanner = heroBanners[currentHeroIdx] || heroBanners[0];
+  const heroDesktopSrc = activeHeroBanner.desktop.url || '/images/hero/hero-banner.png';
+  const heroDesktopAlt = activeHeroBanner.desktop.alt || 'Parallax Perfumery Desktop Banner';
+  const heroMobileSrc = activeHeroBanner.mobile.url || heroDesktopSrc;
+  const heroMobileAlt = activeHeroBanner.mobile.alt || heroDesktopAlt;
 
   const productList = content?.products && content.products.length === 5 
     ? content.products 
@@ -194,38 +221,58 @@ export default function Home() {
 
       <main className="flex-grow pt-28 md:pt-32 pb-24 relative">
         {/* Hero Section */}
-        <section className="w-full mb-16 md:mb-24 relative z-10 overflow-hidden">
+        <section className="w-full mb-16 md:mb-24 relative z-10 overflow-hidden group">
           <h1 className="sr-only">Parallax OEM / ODM Manufacturing - Build Your Fragrance Brand</h1>
           
           {/* Desktop Banner (Hidden on Mobile) */}
-          <div className="hidden md:block w-full aspect-[1920/650] max-h-[650px] overflow-hidden">
+          <div className="hidden md:block w-full aspect-[1920/650] max-h-[650px] overflow-hidden relative">
             <img 
-              src={heroImageSrc} 
-              alt={heroImageAlt}
+              key={`desktop-${activeHeroBanner.id}-${heroDesktopSrc}`}
+              src={heroDesktopSrc} 
+              alt={heroDesktopAlt}
               onError={(e) => {
                 const target = e.currentTarget;
                 if (target.src !== '/images/hero/hero-banner.png') {
                   target.src = '/images/hero/hero-banner.png';
                 }
               }}
-              className="w-full h-full object-cover object-center block"
+              className="w-full h-full object-cover object-center block transition-opacity duration-700 animate-fade-in"
             />
           </div>
 
           {/* Mobile Banner (535x378 Frame - Visible on Mobile) */}
-          <div className="block md:hidden w-full aspect-[535/378] overflow-hidden bg-black/5">
+          <div className="block md:hidden w-full aspect-[535/378] overflow-hidden bg-black/5 relative">
             <img 
-              src={mobileHeroImageSrc} 
-              alt={mobileHeroImageAlt}
+              key={`mobile-${activeHeroBanner.id}-${heroMobileSrc}`}
+              src={heroMobileSrc} 
+              alt={heroMobileAlt}
               onError={(e) => {
                 const target = e.currentTarget;
                 if (target.src !== '/images/hero/mobile-hero-banner.png') {
                   target.src = '/images/hero/mobile-hero-banner.png';
                 }
               }}
-              className="w-full h-full object-cover object-center block"
+              className="w-full h-full object-cover object-center block transition-opacity duration-700 animate-fade-in"
             />
           </div>
+
+          {/* Dots Indicator for Multiple Hero Banners */}
+          {heroBanners.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 bg-black/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 shadow-lg">
+              {heroBanners.map((banner, idx) => (
+                <button
+                  key={banner.id}
+                  onClick={() => setCurrentHeroIdx(idx)}
+                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                    currentHeroIdx === idx
+                      ? 'bg-white w-6'
+                      : 'bg-white/50 hover:bg-white/80'
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Continuous Infinite Horizontal Product Marquee */}

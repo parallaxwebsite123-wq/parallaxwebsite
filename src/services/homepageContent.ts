@@ -6,6 +6,15 @@ export interface ImageMeta {
   updatedAt?: number;
 }
 
+export interface BannerItem {
+  id: string;
+  order: number;
+  desktop: ImageMeta;
+  mobile: ImageMeta;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface ProductItem {
   id: string;
   category: string;
@@ -28,12 +37,14 @@ export interface CapabilitiesSection {
 export interface HomepageContent {
   hero: {
     image: ImageMeta;
+    banners?: BannerItem[];
   };
   mobileHero?: {
     image: ImageMeta;
   };
   aboutBanner?: {
     image: ImageMeta;
+    banners?: BannerItem[];
   };
   aboutMobileBanner?: {
     image: ImageMeta;
@@ -48,7 +59,25 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       url: '/images/hero/hero-banner.png',
       alt: 'Our Preciously Curated Gift Collection - Parallax Perfumery',
       updatedAt: 1725840000000
-    }
+    },
+    banners: [
+      {
+        id: 'hero-banner-1',
+        order: 1,
+        desktop: {
+          url: '/images/hero/hero-banner.png',
+          alt: 'Our Preciously Curated Gift Collection - Parallax Perfumery',
+          updatedAt: 1725840000000
+        },
+        mobile: {
+          url: '/images/hero/mobile-hero-banner.png',
+          alt: 'Our Preciously Curated Gift Collection - Parallax Perfumery (Mobile)',
+          updatedAt: 1725840000000
+        },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ]
   },
   mobileHero: {
     image: {
@@ -62,7 +91,25 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       url: '/images/about-banner-bg.png',
       alt: 'Parallax About Us Banner (Desktop)',
       updatedAt: 1725840000000
-    }
+    },
+    banners: [
+      {
+        id: 'about-banner-1',
+        order: 1,
+        desktop: {
+          url: '/images/about-banner-bg.png',
+          alt: 'Parallax About Us Banner (Desktop)',
+          updatedAt: 1725840000000
+        },
+        mobile: {
+          url: '/images/about-mobile-banner.png',
+          alt: 'Parallax About Us Banner (Mobile)',
+          updatedAt: 1725840000000
+        },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ]
   },
   aboutMobileBanner: {
     image: {
@@ -181,6 +228,82 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   }
 };
 
+function normalizeBanners(
+  rawBanners: any[] | undefined,
+  fallbackDesktop: ImageMeta,
+  fallbackMobile?: ImageMeta,
+  prefix: string = 'banner'
+): BannerItem[] {
+  if (Array.isArray(rawBanners) && rawBanners.length > 0) {
+    return rawBanners
+      .map((item, idx) => ({
+        id: item.id || `${prefix}-${idx + 1}-${Date.now()}`,
+        order: typeof item.order === 'number' ? item.order : idx + 1,
+        desktop: item.desktop || item.image || fallbackDesktop,
+        mobile: item.mobile || fallbackMobile || item.desktop || item.image || fallbackDesktop,
+        createdAt: item.createdAt || Date.now(),
+        updatedAt: item.updatedAt || Date.now()
+      }))
+      .sort((a, b) => a.order - b.order);
+  }
+
+  return [
+    {
+      id: `${prefix}-1`,
+      order: 1,
+      desktop: fallbackDesktop,
+      mobile: fallbackMobile || fallbackDesktop,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+  ];
+}
+
+export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): HomepageContent {
+  const heroData = raw?.hero || DEFAULT_HOMEPAGE_CONTENT.hero;
+  const mobileHeroData = raw?.mobile_hero || raw?.mobileHero || DEFAULT_HOMEPAGE_CONTENT.mobileHero;
+  const aboutBannerData = raw?.about_banner || raw?.aboutBanner || DEFAULT_HOMEPAGE_CONTENT.aboutBanner;
+  const aboutMobileBannerData = raw?.about_mobile_banner || raw?.aboutMobileBanner || DEFAULT_HOMEPAGE_CONTENT.aboutMobileBanner;
+
+  const defaultHeroDesktop = DEFAULT_HOMEPAGE_CONTENT.hero.image;
+  const defaultHeroMobile = DEFAULT_HOMEPAGE_CONTENT.mobileHero!.image;
+  const defaultAboutDesktop = DEFAULT_HOMEPAGE_CONTENT.aboutBanner!.image;
+  const defaultAboutMobile = DEFAULT_HOMEPAGE_CONTENT.aboutMobileBanner!.image;
+
+  const heroBanners = normalizeBanners(
+    heroData?.banners,
+    heroData?.image || defaultHeroDesktop,
+    mobileHeroData?.image || defaultHeroMobile,
+    'hero-banner'
+  );
+
+  const aboutBanners = normalizeBanners(
+    aboutBannerData?.banners,
+    aboutBannerData?.image || defaultAboutDesktop,
+    aboutMobileBannerData?.image || defaultAboutMobile,
+    'about-banner'
+  );
+
+  return {
+    hero: {
+      image: heroBanners[0]?.desktop || heroData?.image || defaultHeroDesktop,
+      banners: heroBanners
+    },
+    mobileHero: {
+      image: heroBanners[0]?.mobile || mobileHeroData?.image || defaultHeroMobile
+    },
+    aboutBanner: {
+      image: aboutBanners[0]?.desktop || aboutBannerData?.image || defaultAboutDesktop,
+      banners: aboutBanners
+    },
+    aboutMobileBanner: {
+      image: aboutBanners[0]?.mobile || aboutMobileBannerData?.image || defaultAboutMobile
+    },
+    products: raw?.products || DEFAULT_HOMEPAGE_CONTENT.products,
+    capabilities: raw?.capabilities || DEFAULT_HOMEPAGE_CONTENT.capabilities
+  };
+}
+
 export async function getPublishedHomepageContent(): Promise<HomepageContent> {
   if (isSupabaseConfigured()) {
     try {
@@ -191,14 +314,7 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
         .single();
 
       if (!error && data) {
-        return {
-          hero: data.hero || DEFAULT_HOMEPAGE_CONTENT.hero,
-          mobileHero: data.mobile_hero || DEFAULT_HOMEPAGE_CONTENT.mobileHero,
-          aboutBanner: data.about_banner || DEFAULT_HOMEPAGE_CONTENT.aboutBanner,
-          aboutMobileBanner: data.about_mobile_banner || DEFAULT_HOMEPAGE_CONTENT.aboutMobileBanner,
-          products: data.products || DEFAULT_HOMEPAGE_CONTENT.products,
-          capabilities: data.capabilities || DEFAULT_HOMEPAGE_CONTENT.capabilities
-        };
+        return normalizeHomepageContent(data);
       }
     } catch (err) {
       console.warn('Supabase getPublishedHomepageContent error:', err);
@@ -209,17 +325,17 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
     const res = await fetch('/api/homepage-content', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      return data;
+      return normalizeHomepageContent(data);
     }
     const fallbackRes = await fetch('/data/homepage-content.json', { cache: 'no-store' });
     if (fallbackRes.ok) {
       const data = await fallbackRes.json();
-      return data;
+      return normalizeHomepageContent(data);
     }
   } catch (err) {
     console.warn('Could not fetch homepage content from API, using defaults:', err);
   }
-  return DEFAULT_HOMEPAGE_CONTENT;
+  return normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
 }
 
 export async function uploadAdminImage(file: File): Promise<{ url: string; filename: string }> {
@@ -290,16 +406,28 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
 }
 
 export async function savePublishedHomepageContent(content: HomepageContent): Promise<void> {
+  const normalized = normalizeHomepageContent(content);
+
   if (isSupabaseConfigured()) {
     try {
       const payload = {
         id: 'published',
-        hero: content.hero,
-        mobile_hero: content.mobileHero || null,
-        about_banner: content.aboutBanner || null,
-        about_mobile_banner: content.aboutMobileBanner || null,
-        products: content.products,
-        capabilities: content.capabilities || null,
+        hero: {
+          image: normalized.hero.image,
+          banners: normalized.hero.banners
+        },
+        mobile_hero: {
+          image: normalized.mobileHero?.image
+        },
+        about_banner: {
+          image: normalized.aboutBanner?.image,
+          banners: normalized.aboutBanner?.banners
+        },
+        about_mobile_banner: {
+          image: normalized.aboutMobileBanner?.image
+        },
+        products: normalized.products,
+        capabilities: normalized.capabilities || null,
         updated_at: new Date().toISOString()
       };
 
@@ -318,7 +446,7 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
   const res = await fetch('/api/homepage-content', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(content)
+    body: JSON.stringify(normalized)
   });
 
   if (!res.ok) {

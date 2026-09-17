@@ -116,8 +116,36 @@ export default function About() {
       .catch((err) => console.error("Failed to load about page content:", err));
   }, []);
 
-  const desktopBannerSrc = content?.aboutBanner?.image?.url || '/images/about-banner-bg.png';
-  const mobileBannerSrc = content?.aboutMobileBanner?.image?.url || '/images/about-mobile-banner.png';
+  const aboutBanners = content?.aboutBanner?.banners && content.aboutBanner.banners.length > 0
+    ? content.aboutBanner.banners
+    : [
+        {
+          id: 'about-default',
+          order: 1,
+          desktop: {
+            url: content?.aboutBanner?.image?.url || '/images/about-banner-bg.png',
+            alt: 'Parallax Banner (Desktop)'
+          },
+          mobile: {
+            url: content?.aboutMobileBanner?.image?.url || content?.aboutBanner?.image?.url || '/images/about-mobile-banner.png',
+            alt: 'Parallax Banner (Mobile)'
+          }
+        }
+      ];
+
+  const [currentAboutIdx, setCurrentAboutIdx] = useState(0);
+
+  useEffect(() => {
+    if (aboutBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentAboutIdx((prev) => (prev + 1) % aboutBanners.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [aboutBanners.length]);
+
+  const activeAboutBanner = aboutBanners[currentAboutIdx] || aboutBanners[0];
+  const desktopBannerSrc = activeAboutBanner.desktop.url || '/images/about-banner-bg.png';
+  const mobileBannerSrc = activeAboutBanner.mobile.url || desktopBannerSrc;
 
   const openInquiry = (serviceName?: string) => {
     if (serviceName) setSelectedService(serviceName);
@@ -144,7 +172,7 @@ export default function About() {
           <picture className="absolute inset-0 w-full h-full z-0">
             <source media="(max-width: 639px)" srcSet={mobileBannerSrc} />
             <img 
-              key={desktopBannerSrc + mobileBannerSrc}
+              key={`${activeAboutBanner.id}-${desktopBannerSrc}-${mobileBannerSrc}`}
               src={desktopBannerSrc} 
               alt="Parallax Banner" 
               onError={(e) => {
@@ -153,31 +181,42 @@ export default function About() {
                   target.src = '/images/about-banner-bg.png';
                 }
               }}
-              className="w-full h-full object-cover object-center block"
+              className="w-full h-full object-cover object-center block transition-opacity duration-700 animate-fade-in"
             />
           </picture>
           
-          <div className="relative z-10 w-full h-full pr-[3.5cqw] sm:pr-[4.5cqw] pl-2 flex items-center justify-end">
-            <MotionReveal delay={0.1} className="ml-auto my-auto">
-              <div className="max-w-fit text-right flex flex-col items-end space-y-[0.8cqw] sm:space-y-[1.2cqw] ml-auto">
-                <h1 
-                  style={{ fontFamily: "'KievitSerifMedium', 'Kievit Serif', 'KievitSerif-Medium', serif" }}
-                  className="text-[3.8cqw] sm:text-[3.6cqw] font-medium tracking-tight leading-[1.08] text-black"
-                >
-                  <span className="block whitespace-nowrap">Beautiful fragrances</span>
-                  <span className="block whitespace-nowrap">Manufactured for you</span>
-                </h1>
+          {/* Dots Indicator for Multiple About Banners */}
+          {aboutBanners.length > 1 && (
+            <div className="absolute bottom-4 left-6 sm:left-12 flex items-center gap-2 z-20 bg-black/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 shadow-lg">
+              {aboutBanners.map((banner, idx) => (
+                <button
+                  key={banner.id}
+                  onClick={() => setCurrentAboutIdx(idx)}
+                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                    currentAboutIdx === idx
+                      ? 'bg-white w-6'
+                      : 'bg-white/50 hover:bg-white/80'
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
 
-                <div className="pt-[0.2cqw] sm:pt-[0.4cqw]">
-                  <button
-                    type="button"
-                    onClick={() => openInquiry()}
-                    className="inline-flex items-center gap-[0.5cqw] sm:gap-[0.6cqw] px-[2.2cqw] sm:px-[1.8cqw] py-[0.7cqw] sm:py-[0.7cqw] rounded-full border border-red-600 sm:border-[0.15cqw] text-red-600 hover:bg-red-600 hover:text-white font-label-sm text-[2.1cqw] sm:text-[0.95cqw] uppercase tracking-wider font-bold transition-all shadow-sm active:scale-95 cursor-pointer bg-white/90 backdrop-blur-sm"
-                  >
-                    <span>Explore more</span>
-                    <span className="material-symbols-outlined text-[2.4cqw] sm:text-[1.1cqw]">arrow_forward</span>
-                  </button>
-                </div>
+          <div className="relative z-10 w-full h-full px-[3.5cqw] sm:px-[4.5cqw] py-[2.5cqw] sm:py-[3.5cqw] flex flex-col justify-end pointer-events-none">
+            <h1 className="sr-only">About Parallax Perfumery - Fragrance Manufacturing</h1>
+
+            {/* Bottom Left: Explore More Button (Centered below PRIVATE LABEL • WHITE LABEL • FRAGRANCE MANUFACTURING line) */}
+            <MotionReveal delay={0.2} className="mr-auto mt-auto pointer-events-auto ml-[7.5cqw] sm:ml-[9cqw]">
+              <div className="pt-[1.5cqw] sm:pt-[1cqw]">
+                <button
+                  type="button"
+                  onClick={() => openInquiry()}
+                  className="inline-flex items-center gap-[0.5cqw] sm:gap-[0.6cqw] px-[2.2cqw] sm:px-[1.8cqw] py-[0.7cqw] sm:py-[0.7cqw] rounded-full border border-white sm:border-[0.15cqw] bg-[#c59b27] hover:bg-[#a8821d] text-white font-label-sm text-[2.1cqw] sm:text-[0.95cqw] uppercase tracking-wider font-bold transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer backdrop-blur-sm"
+                >
+                  <span>Explore more</span>
+                  <span className="material-symbols-outlined text-[2.4cqw] sm:text-[1.1cqw]">arrow_forward</span>
+                </button>
               </div>
             </MotionReveal>
           </div>
@@ -362,6 +401,23 @@ export default function About() {
                     </h4>
                     <p className="font-body-md text-xs text-[#0e3237]/70 leading-relaxed">
                       Certified by the International Fragrance Association (IFRA), guaranteeing strict adherence to international safety, purity, and environmental standards.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quality Control & Consistency Highlight */}
+                <div className="pt-4 border-t border-[#0e3237]/10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                  <img 
+                    src="/images/quality-icon.jpg" 
+                    alt="Quality Control & Consistency" 
+                    className="h-16 w-auto object-contain shrink-0 mix-blend-multiply"
+                  />
+                  <div className="text-center sm:text-left">
+                    <h4 className="font-headline-md text-xs font-bold uppercase tracking-wider text-[#0e3237] mb-1">
+                      QUALITY CONTROL & CONSISTENCY
+                    </h4>
+                    <p className="font-body-md text-xs text-[#0e3237]/70 leading-relaxed">
+                      Rigorous quality-control processes help maintain consistent fragrance quality and product uniformity across production batches.
                     </p>
                   </div>
                 </div>
