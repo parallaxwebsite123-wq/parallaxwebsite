@@ -128,18 +128,18 @@ CREATE POLICY "Public select capabilities"
 CREATE POLICY "Public select site_settings" 
   ON public.site_settings FOR SELECT USING (true);
 
--- Admins full access to content tables
+-- CMS content management policies (allowing both anon and authenticated admin access)
 CREATE POLICY "Admin manage homepage_content" 
-  ON public.homepage_content FOR ALL TO authenticated USING (true);
+  ON public.homepage_content FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Admin manage homepage_products" 
-  ON public.homepage_products FOR ALL TO authenticated USING (true);
+  ON public.homepage_products FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Admin manage capabilities" 
-  ON public.capabilities FOR ALL TO authenticated USING (true);
+  ON public.capabilities FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Admin manage site_settings" 
-  ON public.site_settings FOR ALL TO authenticated USING (true);
+  ON public.site_settings FOR ALL USING (true) WITH CHECK (true);
 
 -- ------------------------------------------------------------------------------
 -- POLICIES: STORAGE (website-assets)
@@ -150,15 +150,12 @@ CREATE POLICY "Public read website-assets"
 
 CREATE POLICY "Admin upload website-assets" 
   ON storage.objects FOR INSERT 
-  TO authenticated 
   WITH CHECK (bucket_id = 'website-assets');
 
 CREATE POLICY "Admin update website-assets" 
   ON storage.objects FOR UPDATE 
-  TO authenticated 
   USING (bucket_id = 'website-assets');
 
 CREATE POLICY "Admin delete website-assets" 
   ON storage.objects FOR DELETE 
-  TO authenticated 
   USING (bucket_id = 'website-assets');

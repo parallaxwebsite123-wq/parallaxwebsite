@@ -361,23 +361,27 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
           upsert: true
         });
 
-      if (!uploadError) {
-        const { data: publicUrlData } = supabase.storage
-          .from('website-assets')
-          .getPublicUrl(cleanFileName);
-
-        if (publicUrlData?.publicUrl) {
-          return { url: publicUrlData.publicUrl, filename: cleanFileName };
-        }
-      } else {
-        console.warn('Supabase storage upload notice:', uploadError.message);
+      if (uploadError) {
+        console.error('Supabase storage upload error:', uploadError.message);
+        throw new Error(`Image upload failed: ${uploadError.message}`);
       }
-    } catch (err) {
-      console.warn('Supabase storage upload failed, attempting fallback API:', err);
+
+      const { data: publicUrlData } = supabase.storage
+        .from('website-assets')
+        .getPublicUrl(cleanFileName);
+
+      if (publicUrlData?.publicUrl) {
+        return { url: publicUrlData.publicUrl, filename: cleanFileName };
+      }
+
+      throw new Error('Image upload failed: Could not retrieve public URL for uploaded file.');
+    } catch (err: any) {
+      console.error('Supabase storage upload error:', err);
+      throw err;
     }
   }
 
-  // Fallback to local server upload API
+  // Fallback to local server upload API if Supabase is not configured
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
@@ -436,10 +440,23 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
         .upsert(payload);
 
       if (error) {
-        console.warn('Supabase homepage_content save error:', error.message);
+        console.error('Supabase homepage_content save error:', error.message);
+        throw new Error(`Failed to save banner content: ${error.message}`);
       }
-    } catch (err) {
-      console.warn('Failed to save to Supabase, saving to local API:', err);
+
+      // Sync local JSON backup asynchronously if dev server is running
+      fetch('/api/homepage-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(normalized)
+      }).catch(() => {});
+
+      return;
+    } catch (err: any) {
+      if (err.message && !err.message.includes('API server')) {
+        throw err;
+      }
+      console.warn('Failed to save to Supabase, attempting fallback API:', err);
     }
   }
 

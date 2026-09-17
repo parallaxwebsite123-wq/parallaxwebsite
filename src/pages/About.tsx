@@ -169,10 +169,9 @@ export default function About() {
         {/* ================================================== */}
         <section className="relative w-full aspect-[535/378] sm:aspect-[1900/840] flex items-center mb-8 md:mb-12 overflow-hidden [container-type:inline-size]">
           {/* Full-width Responsive Background Image starting right below Navbar */}
-          <picture className="absolute inset-0 w-full h-full z-0">
+          <picture key={`${activeAboutBanner.id}-${desktopBannerSrc}-${mobileBannerSrc}`} className="absolute inset-0 w-full h-full z-0">
             <source media="(max-width: 639px)" srcSet={mobileBannerSrc} />
             <img 
-              key={`${activeAboutBanner.id}-${desktopBannerSrc}-${mobileBannerSrc}`}
               src={desktopBannerSrc} 
               alt="Parallax Banner" 
               onError={(e) => {
