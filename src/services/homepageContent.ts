@@ -313,7 +313,7 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
     throw new Error('Image upload failed: Unsupported file format. Please select a valid image file (JPG, PNG, WebP, etc.).');
   }
 
-  // 1. Try Supabase Storage if configured
+  // 1. Upload to Supabase Storage 'website-assets' bucket
   if (isSupabaseConfigured()) {
     try {
       const ext = file.name.split('.').pop() || 'png';
@@ -335,23 +335,28 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
           return { url: publicUrlData.publicUrl, filename: cleanFileName };
         }
       } else {
-        console.warn('Supabase storage upload notice (falling back to Data URL):', uploadError.message);
+        console.error('Supabase storage upload error:', uploadError.message);
+        if (uploadError.message?.includes('not found') || uploadError.message?.includes('Bucket')) {
+          console.warn('Bucket "website-assets" not found in Supabase Storage. Falling back to Data URL encoding.');
+        } else {
+          throw new Error(`Supabase Storage upload error: ${uploadError.message}`);
+        }
       }
-    } catch (err) {
-      console.warn('Supabase storage exception (falling back to Data URL):', err);
+    } catch (err: any) {
+      if (err.message && err.message.includes('Supabase Storage upload error')) {
+        throw err;
+      }
+      console.warn('Supabase storage upload exception, using fallback encoding:', err);
     }
   }
 
   // 2. Local image processing fallback (Convert to Data URL / Base64)
-  // This guarantees that selecting any image file from local disk works instantly
-  // and saves seamlessly without requiring Supabase storage bucket or server endpoint.
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
       try {
         const dataUrl = reader.result as string;
 
-        // Optionally attempt sync to local upload endpoint if present
         try {
           const res = await fetch('/api/upload-image', {
             method: 'POST',
@@ -383,56 +388,53 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
 export async function savePublishedHomepageContent(content: HomepageContent): Promise<void> {
   const normalized = normalizeHomepageContent(content);
 
-  // 1. Instant local storage persistence fallback
+  // Sync to local browser cache as secondary offline backup
   try {
     localStorage.setItem('parallax_homepage_content', JSON.stringify(normalized));
   } catch (e) {
     console.warn('Could not save homepage content to localStorage:', e);
   }
 
-  // 2. Primary Supabase database persistence
+  // Primary Supabase cloud database persistence
   if (isSupabaseConfigured()) {
-    try {
-      const payload = {
-        id: 'published',
-        hero: {
-          image: normalized.hero.image,
-          banners: normalized.hero.banners
-        },
-        mobile_hero: {
-          image: normalized.mobileHero?.image
-        },
-        about_banner: {
-          image: normalized.aboutBanner?.image,
-          banners: normalized.aboutBanner?.banners
-        },
-        about_mobile_banner: {
-          image: normalized.aboutMobileBanner?.image
-        },
-        products: normalized.products,
-        capabilities: normalized.capabilities || null,
-        updated_at: new Date().toISOString()
-      };
+    const payload = {
+      id: 'published',
+      hero: {
+        image: normalized.hero.image,
+        banners: normalized.hero.banners
+      },
+      mobile_hero: {
+        image: normalized.mobileHero?.image
+      },
+      about_banner: {
+        image: normalized.aboutBanner?.image,
+        banners: normalized.aboutBanner?.banners
+      },
+      about_mobile_banner: {
+        image: normalized.aboutMobileBanner?.image
+      },
+      products: normalized.products,
+      capabilities: normalized.capabilities || null,
+      updated_at: new Date().toISOString()
+    };
 
-      const { error } = await supabase
-        .from('homepage_content')
-        .upsert(payload);
+    const { error } = await supabase
+      .from('homepage_content')
+      .upsert(payload);
 
-      if (error) {
-        console.warn('Supabase homepage_content save notice:', error.message);
-      } else {
-        // Sync local JSON backup asynchronously if dev server is running
-        fetch('/api/homepage-content', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(normalized)
-        }).catch(() => {});
-
-        return;
-      }
-    } catch (err: any) {
-      console.warn('Failed to save to Supabase:', err);
+    if (error) {
+      console.error('Supabase homepage_content save error:', error.message);
+      throw new Error(`Database Save Error: ${error.message}. Changes could not be published to Supabase.`);
     }
+
+    // Sync local JSON backup asynchronously if dev server is running
+    fetch('/api/homepage-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(normalized)
+    }).catch(() => {});
+
+    return;
   }
 
   // Sync to local API server if available
@@ -454,23 +456,15 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
 
       if (!error && data) {
         return normalizeHomepageContent(data);
+      } else if (error) {
+        console.warn('Supabase homepage_content query notice:', error.message);
       }
     } catch (err) {
       console.warn('Supabase getPublishedHomepageContent error:', err);
     }
   }
 
-  // Check localStorage persistence fallback
-  try {
-    const localData = localStorage.getItem('parallax_homepage_content');
-    if (localData) {
-      const parsed = JSON.parse(localData);
-      return normalizeHomepageContent(parsed);
-    }
-  } catch (err) {
-    console.warn('Could not load homepage content from localStorage:', err);
-  }
-
+  // Fallback to static JSON / defaults if database record does not exist yet
   try {
     const res = await fetch('/api/homepage-content', { cache: 'no-store' });
     if (res.ok) {
@@ -485,5 +479,17 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
   } catch (err) {
     console.warn('Could not fetch homepage content from API, using defaults:', err);
   }
+
+  // Check localStorage as final fallback if offline
+  try {
+    const localData = localStorage.getItem('parallax_homepage_content');
+    if (localData) {
+      const parsed = JSON.parse(localData);
+      return normalizeHomepageContent(parsed);
+    }
+  } catch (err) {
+    console.warn('Could not load homepage content from localStorage:', err);
+  }
+
   return normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
 }

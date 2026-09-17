@@ -93,69 +93,82 @@ ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 -- POLICIES: INQUIRIES
 -- ------------------------------------------------------------------------------
 -- Public visitors can create inquiries (both DOUBTS? CONTACT US & GET A QUICK QUOTE)
+DROP POLICY IF EXISTS "Public insert inquiries" ON public.inquiries;
 CREATE POLICY "Public insert inquiries" 
   ON public.inquiries FOR INSERT 
   WITH CHECK (true);
 
--- Only authenticated admins can view, update, or delete inquiries
+-- Admins can view, update, or delete inquiries
+DROP POLICY IF EXISTS "Admins select inquiries" ON public.inquiries;
 CREATE POLICY "Admins select inquiries" 
   ON public.inquiries FOR SELECT 
-  TO authenticated 
   USING (true);
 
+DROP POLICY IF EXISTS "Admins update inquiries" ON public.inquiries;
 CREATE POLICY "Admins update inquiries" 
   ON public.inquiries FOR UPDATE 
-  TO authenticated 
   USING (true);
 
+DROP POLICY IF EXISTS "Admins delete inquiries" ON public.inquiries;
 CREATE POLICY "Admins delete inquiries" 
   ON public.inquiries FOR DELETE 
-  TO authenticated 
   USING (true);
 
 -- ------------------------------------------------------------------------------
 -- POLICIES: PUBLIC CONTENT (homepage_content, products, capabilities, settings)
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Public select homepage_content" ON public.homepage_content;
 CREATE POLICY "Public select homepage_content" 
   ON public.homepage_content FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public select homepage_products" ON public.homepage_products;
 CREATE POLICY "Public select homepage_products" 
   ON public.homepage_products FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public select capabilities" ON public.capabilities;
 CREATE POLICY "Public select capabilities" 
   ON public.capabilities FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public select site_settings" ON public.site_settings;
 CREATE POLICY "Public select site_settings" 
   ON public.site_settings FOR SELECT USING (true);
 
 -- CMS content management policies (allowing both anon and authenticated admin access)
+DROP POLICY IF EXISTS "Admin manage homepage_content" ON public.homepage_content;
 CREATE POLICY "Admin manage homepage_content" 
   ON public.homepage_content FOR ALL USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin manage homepage_products" ON public.homepage_products;
 CREATE POLICY "Admin manage homepage_products" 
   ON public.homepage_products FOR ALL USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin manage capabilities" ON public.capabilities;
 CREATE POLICY "Admin manage capabilities" 
   ON public.capabilities FOR ALL USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin manage site_settings" ON public.site_settings;
 CREATE POLICY "Admin manage site_settings" 
   ON public.site_settings FOR ALL USING (true) WITH CHECK (true);
 
 -- ------------------------------------------------------------------------------
 -- POLICIES: STORAGE (website-assets)
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Public read website-assets" ON storage.objects;
 CREATE POLICY "Public read website-assets" 
   ON storage.objects FOR SELECT 
   USING (bucket_id = 'website-assets');
 
+DROP POLICY IF EXISTS "Admin upload website-assets" ON storage.objects;
 CREATE POLICY "Admin upload website-assets" 
   ON storage.objects FOR INSERT 
   WITH CHECK (bucket_id = 'website-assets');
 
+DROP POLICY IF EXISTS "Admin update website-assets" ON storage.objects;
 CREATE POLICY "Admin update website-assets" 
   ON storage.objects FOR UPDATE 
   USING (bucket_id = 'website-assets');
 
+DROP POLICY IF EXISTS "Admin delete website-assets" ON storage.objects;
 CREATE POLICY "Admin delete website-assets" 
   ON storage.objects FOR DELETE 
   USING (bucket_id = 'website-assets');
