@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import InquiryModal from '../components/InquiryModal';
 import { getPublishedHomepageContent, HomepageContent } from '../services/homepageContent';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 function CapacityCounter() {
   const [count, setCount] = useState(0);
@@ -155,9 +156,39 @@ export default function Home() {
   const [selectedInquiryService, setSelectedInquiryService] = useState<string>('');
 
   useEffect(() => {
-    getPublishedHomepageContent()
-      .then((data) => setContent(data))
-      .catch((err) => console.error("Failed to load homepage content:", err));
+    let isMounted = true;
+
+    const fetchContent = () => {
+      getPublishedHomepageContent()
+        .then((data) => {
+          if (isMounted) setContent(data);
+        })
+        .catch((err) => console.error("Failed to load homepage content:", err));
+    };
+
+    fetchContent();
+
+    window.addEventListener('focus', fetchContent);
+
+    let channel: any = null;
+    if (isSupabaseConfigured()) {
+      channel = supabase
+        .channel('public:homepage_content_home')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'homepage_content' },
+          () => {
+            fetchContent();
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', fetchContent);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const heroBanners = content?.hero?.banners && content.hero.banners.length > 0

@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar';
 import InquiryModal from '../components/InquiryModal';
 import QuickQuoteReveal from '../components/QuickQuoteReveal';
 import { getPublishedHomepageContent, HomepageContent } from '../services/homepageContent';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 // Animated Counter Component for About Page Manufacturing Scale
 function AboutCapacityCounter() {
@@ -111,9 +112,41 @@ export default function About() {
   const [selectedService, setSelectedService] = useState<string>('');
 
   useEffect(() => {
-    getPublishedHomepageContent()
-      .then((data) => setContent(data))
-      .catch((err) => console.error("Failed to load about page content:", err));
+    let isMounted = true;
+
+    const fetchContent = () => {
+      getPublishedHomepageContent()
+        .then((data) => {
+          if (isMounted) setContent(data);
+        })
+        .catch((err) => console.error("Failed to load about page content:", err));
+    };
+
+    fetchContent();
+
+    // Refetch when window regains focus to ensure multi-device sync
+    window.addEventListener('focus', fetchContent);
+
+    // Supabase Realtime subscription for instant multi-device update
+    let channel: any = null;
+    if (isSupabaseConfigured()) {
+      channel = supabase
+        .channel('public:homepage_content_about')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'homepage_content' },
+          () => {
+            fetchContent();
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', fetchContent);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const aboutBanners = content?.aboutBanner?.banners && content.aboutBanner.banners.length > 0
