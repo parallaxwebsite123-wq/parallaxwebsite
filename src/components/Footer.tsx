@@ -95,7 +95,7 @@ export default function Footer() {
               </p>
               <p className="flex items-start gap-2 pt-1">
                 <span className="material-symbols-outlined text-base text-secondary-fixed-dim shrink-0 mt-0.5">location_on</span>
-                <span className="leading-relaxed">Gala 123 & 124, 34, Dapode, Om Sainath Complex, Thane - 421302, Maharashtra, India</span>
+                <span className="leading-relaxed">Parallax INC, Om Sainath Complex, Mankoli Naka Road, Dapode, Maharashtra 421302</span>
               </p>
             </div>
           </div>

@@ -259,6 +259,34 @@ function normalizeBanners(
   ];
 }
 
+function normalizeProducts(rawProducts: any[] | undefined): ProductItem[] {
+  const defaults = DEFAULT_HOMEPAGE_CONTENT.products;
+  if (!Array.isArray(rawProducts) || rawProducts.length === 0) {
+    return defaults;
+  }
+
+  return defaults.map((fallback, idx) => {
+    const item = rawProducts[idx] || rawProducts.find(p => p?.id === fallback.id);
+    if (!item) return fallback;
+
+    const rawImage = item?.image || item?.image_url || fallback.image;
+    const imageUrl = typeof rawImage === 'string' ? rawImage : (rawImage?.url || fallback.image.url);
+    const imageAlt = typeof rawImage === 'object' && rawImage?.alt ? rawImage.alt : (item?.title || fallback.title);
+
+    return {
+      id: item?.id || fallback.id,
+      category: item?.category || fallback.category,
+      title: (item?.title && String(item.title).trim()) ? String(item.title).trim() : fallback.title,
+      link: item?.link || fallback.link,
+      image: {
+        url: imageUrl,
+        alt: imageAlt,
+        updatedAt: item?.image?.updatedAt || Date.now()
+      }
+    };
+  });
+}
+
 export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): HomepageContent {
   const heroData = raw?.hero || DEFAULT_HOMEPAGE_CONTENT.hero;
   const mobileHeroData = raw?.mobile_hero || raw?.mobileHero || DEFAULT_HOMEPAGE_CONTENT.mobileHero;
@@ -299,7 +327,7 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
     aboutMobileBanner: {
       image: aboutBanners[0]?.mobile || aboutMobileBannerData?.image || defaultAboutMobile
     },
-    products: raw?.products || DEFAULT_HOMEPAGE_CONTENT.products,
+    products: normalizeProducts(raw?.products),
     capabilities: raw?.capabilities || DEFAULT_HOMEPAGE_CONTENT.capabilities
   };
 }

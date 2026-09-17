@@ -464,6 +464,7 @@ export default function AdminDashboard() {
   const productFileRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const [productNewFiles, setProductNewFiles] = useState<{ [key: string]: File | null }>({});
   const [productNewPreviews, setProductNewPreviews] = useState<{ [key: string]: string | null }>({});
+  const [productTitleInputs, setProductTitleInputs] = useState<{ [key: string]: string }>({});
   const [publishingProductId, setPublishingProductId] = useState<string | null>(null);
 
   // Capabilities CMS editing state
@@ -831,23 +832,38 @@ export default function AdminDashboard() {
     if (productFileRefs.current[productId]) productFileRefs.current[productId]!.value = '';
   };
 
-  const handlePublishProduct = async (productId: string) => {
+  const handleSaveProductCard = async (productId: string) => {
+    const targetProduct = cmsContent.products.find(p => p.id === productId);
+    if (!targetProduct) return;
+
     const file = productNewFiles[productId];
-    if (!file) return;
+    const newTitleInput = productTitleInputs[productId];
+    const updatedTitle = (newTitleInput !== undefined ? newTitleInput : targetProduct.title).trim();
+
+    if (!updatedTitle) {
+      showNotification('error', 'Product title cannot be empty.');
+      return;
+    }
 
     setPublishingProductId(productId);
     try {
-      // 1. Upload image to persistent storage
-      const uploaded = await uploadAdminImage(file);
+      let imageUrl = targetProduct.image.url;
 
-      // 2. Update target product item in record
+      // 1. Upload new image if a file was selected from local disk
+      if (file) {
+        const uploaded = await uploadAdminImage(file);
+        imageUrl = uploaded.url;
+      }
+
+      // 2. Construct updated products array preserving order and updating target product
       const updatedProducts = cmsContent.products.map(p => {
         if (p.id === productId) {
           return {
             ...p,
+            title: updatedTitle,
             image: {
-              url: uploaded.url,
-              alt: p.title,
+              url: imageUrl,
+              alt: updatedTitle,
               updatedAt: Date.now()
             }
           };
@@ -860,16 +876,24 @@ export default function AdminDashboard() {
         products: updatedProducts
       };
 
-      // 3. Persist content JSON record
+      // 3. Atomically save & persist to Supabase database
       await savePublishedHomepageContent(updatedContent);
 
-      // 4. Update local state
+      // 4. Update local state and clear temporary preview/file state
       setCmsContent(updatedContent);
+      setProductTitleInputs(prev => ({ ...prev, [productId]: updatedTitle }));
       handleCancelProductChange(productId);
-      showNotification('success', `Product image for card ${productId.replace('product-', '#')} updated successfully.`);
+
+      if (file && newTitleInput !== undefined && newTitleInput.trim() !== targetProduct.title) {
+        showNotification('success', `Product "${updatedTitle}" name and image updated successfully.`);
+      } else if (file) {
+        showNotification('success', `Product image for "${updatedTitle}" updated successfully.`);
+      } else {
+        showNotification('success', `Product name "${updatedTitle}" updated successfully.`);
+      }
     } catch (err: any) {
-      console.error('Product publishing error:', err);
-      showNotification('error', err.message || 'Could not publish this change. The current homepage image remains unchanged.');
+      console.error('Product save error:', err);
+      showNotification('error', err.message || 'Could not publish changes for this product card.');
     } finally {
       setPublishingProductId(null);
     }
@@ -1287,25 +1311,46 @@ export default function AdminDashboard() {
                               {cmsContent.products.map((product, idx) => {
                                 const newPreview = productNewPreviews[product.id];
                                 const isPublishing = publishingProductId === product.id;
+                                const currentTitleInput = productTitleInputs[product.id] !== undefined ? productTitleInputs[product.id] : product.title;
+                                const hasTitleChanged = productTitleInputs[product.id] !== undefined && productTitleInputs[product.id].trim() !== product.title;
 
                                 return (
-                                  <div key={product.id} className="bg-white/40 rounded-xl p-5 border border-white/60 shadow-sm transition-all hover:border-white">
-                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-3 border-b border-outline-variant/20">
+                                  <div key={product.id} className="bg-white/40 rounded-xl p-5 border border-white/60 shadow-sm transition-all hover:border-white space-y-4">
+                                    {/* Card Header */}
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-outline-variant/20">
                                       <div>
                                         <span className="font-label-sm text-[11px] uppercase tracking-widest text-secondary font-bold">
-                                          PRODUCT 0{idx + 1} • {product.category}
+                                          PRODUCT 0{idx + 1} · {product.category.toUpperCase()}
                                         </span>
-                                        <h4 className="font-headline-md text-base text-primary font-bold">{product.title}</h4>
+                                        <h4 className="font-headline-md text-base text-primary font-bold truncate max-w-md">
+                                          {currentTitleInput}
+                                        </h4>
                                       </div>
                                       <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant/70 bg-white/50 px-2.5 py-1 rounded border border-white/60 shrink-0">
                                         ID: {product.id}
                                       </span>
                                     </div>
 
-                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
+                                    {/* Editable Product Name Input */}
+                                    <div className="max-w-xl">
+                                      <label className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-1.5 font-bold">
+                                        PRODUCT NAME
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={currentTitleInput}
+                                        onChange={(e) => setProductTitleInputs(prev => ({ ...prev, [product.id]: e.target.value }))}
+                                        className="w-full bg-white/70 border border-white/80 rounded-lg px-3.5 py-2.5 text-primary font-headline-md text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all shadow-inner"
+                                        placeholder="Enter Product Name"
+                                      />
+                                    </div>
+
+                                    {/* Product Image Section */}
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start pt-1">
+                                      {/* Current Image */}
                                       <div className="min-w-0">
                                         <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                          Current Image
+                                          CURRENT IMAGE
                                         </span>
                                         <div className="w-full max-w-xs aspect-[16/10] rounded-lg overflow-hidden bg-black/5 border border-white/60 shadow-inner relative flex items-center justify-center">
                                           <img 
@@ -1316,9 +1361,10 @@ export default function AdminDashboard() {
                                         </div>
                                       </div>
 
-                                      <div className="min-w-0">
+                                      {/* Update Image / New Preview */}
+                                      <div className="min-w-0 space-y-3">
                                         <span className="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant block mb-2 font-bold">
-                                          {newPreview ? 'New Image Preview' : 'Update Image'}
+                                          {newPreview ? 'NEW IMAGE PREVIEW' : 'UPDATE IMAGE'}
                                         </span>
 
                                         {newPreview ? (
@@ -1330,41 +1376,54 @@ export default function AdminDashboard() {
                                                 className="w-full h-full object-contain block"
                                               />
                                             </div>
-                                            <div className="flex gap-2">
-                                              <button
-                                                disabled={isPublishing}
-                                                onClick={() => handlePublishProduct(product.id)}
-                                                className="flex-1 btn-primary py-2 px-3 text-xs uppercase tracking-wider disabled:opacity-50"
-                                              >
-                                                {isPublishing ? 'Publishing...' : 'Save Image'}
-                                              </button>
-                                              <button
-                                                disabled={isPublishing}
-                                                onClick={() => handleCancelProductChange(product.id)}
-                                                className="px-3 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-sm text-[10px] uppercase tracking-widest hover:bg-white/40 transition-colors disabled:opacity-50"
-                                              >
-                                                Cancel
-                                              </button>
-                                            </div>
+                                            <button
+                                              type="button"
+                                              disabled={isPublishing}
+                                              onClick={() => handleCancelProductChange(product.id)}
+                                              className="font-label-sm text-[10px] uppercase tracking-widest text-rose-700 hover:underline font-bold"
+                                            >
+                                              Cancel Selected Image
+                                            </button>
                                           </div>
                                         ) : (
                                           <div>
                                             <input 
                                               type="file" 
                                               ref={el => productFileRefs.current[product.id] = el} 
-                                              accept="image/jpeg,image/png,image/webp" 
+                                              accept="image/jpeg,image/png,image/webp,image/jpg" 
                                               className="hidden" 
                                               onChange={(e) => handleProductFileSelect(product.id, e)}
                                             />
                                             <button
+                                              type="button"
                                               onClick={() => productFileRefs.current[product.id]?.click()}
-                                              className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors inline-flex items-center gap-2 bg-white/50 cursor-pointer"
+                                              className="font-label-sm text-xs text-primary uppercase tracking-widest border border-primary px-4 py-2.5 rounded-xl hover:bg-primary hover:text-white transition-all inline-flex items-center gap-2 bg-white/60 shadow-sm cursor-pointer active:scale-95"
                                             >
-                                              <span className="material-symbols-outlined text-base">photo_camera</span> Change Image
+                                              <span className="material-symbols-outlined text-base">photo_camera</span> CHANGE IMAGE
                                             </button>
                                           </div>
                                         )}
                                       </div>
+                                    </div>
+
+                                    {/* Action Footer: Save Button */}
+                                    <div className="pt-3 border-t border-outline-variant/20 flex items-center justify-between flex-wrap gap-3">
+                                      <button
+                                        type="button"
+                                        disabled={isPublishing}
+                                        onClick={() => handleSaveProductCard(product.id)}
+                                        className="btn-primary py-2.5 px-6 text-xs uppercase tracking-wider font-bold shadow-md active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                                      >
+                                        <span className="material-symbols-outlined text-base">
+                                          {isPublishing ? 'sync' : 'save'}
+                                        </span>
+                                        <span>{isPublishing ? 'SAVING...' : 'SAVE CHANGES'}</span>
+                                      </button>
+                                      {(hasTitleChanged || newPreview) && (
+                                        <span className="font-label-sm text-[10px] text-amber-700 uppercase tracking-widest font-bold">
+                                          • Unsaved changes pending
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 );
