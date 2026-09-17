@@ -9,6 +9,7 @@ import {
   BannerItem
 } from '../services/homepageContent';
 import { fetchInquiries, updateInquiryStatus, Inquiry } from '../services/inquiriesService';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 export interface HomepageSectionConfig {
   id: string;
@@ -480,17 +481,54 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadHomepageContent();
     loadInquiries();
+
+    let channel: any = null;
+    if (isSupabaseConfigured()) {
+      channel = supabase
+        .channel('public:homepage_content_admin')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'homepage_content' },
+          () => {
+            loadHomepageContent(false);
+          }
+        )
+        .subscribe();
+    }
+
+    const handleFocus = () => {
+      loadHomepageContent(false);
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
-  const loadHomepageContent = async () => {
-    setIsLoadingCms(true);
+  const loadHomepageContent = async (showLoadingSpinner = true) => {
+    if (showLoadingSpinner) setIsLoadingCms(true);
     try {
       const data = await getPublishedHomepageContent();
       setCmsContent(data);
+      
+      // Sync initial title inputs if not already dirty
+      if (Array.isArray(data.products)) {
+        const initialTitles: { [key: string]: string } = {};
+        data.products.forEach(p => {
+          initialTitles[p.id] = p.title;
+        });
+        setProductTitleInputs(prev => {
+          // Keep active un-saved edits, but populate missing ones
+          const merged = { ...initialTitles, ...prev };
+          return merged;
+        });
+      }
     } catch (err) {
       console.error('Failed to load published homepage content:', err);
     } finally {
-      setIsLoadingCms(false);
+      if (showLoadingSpinner) setIsLoadingCms(false);
     }
   };
 

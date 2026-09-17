@@ -266,7 +266,7 @@ function normalizeProducts(rawProducts: any[] | undefined): ProductItem[] {
   }
 
   return defaults.map((fallback, idx) => {
-    const item = rawProducts[idx] || rawProducts.find(p => p?.id === fallback.id);
+    const item = rawProducts.find(p => p && (p.id === fallback.id || p.id === `product-${idx + 1}`)) || rawProducts[idx];
     if (!item) return fallback;
 
     const rawImage = item?.image || item?.image_url || fallback.image;
@@ -274,7 +274,7 @@ function normalizeProducts(rawProducts: any[] | undefined): ProductItem[] {
     const imageAlt = typeof rawImage === 'object' && rawImage?.alt ? rawImage.alt : (item?.title || fallback.title);
 
     return {
-      id: item?.id || fallback.id,
+      id: fallback.id,
       category: item?.category || fallback.category,
       title: (item?.title && String(item.title).trim()) ? String(item.title).trim() : fallback.title,
       link: item?.link || fallback.link,
@@ -416,14 +416,14 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
 export async function savePublishedHomepageContent(content: HomepageContent): Promise<void> {
   const normalized = normalizeHomepageContent(content);
 
-  // Sync to local browser cache as secondary offline backup
+  // 1. Sync to local browser cache as immediate local backup
   try {
     localStorage.setItem('parallax_homepage_content', JSON.stringify(normalized));
   } catch (e) {
     console.warn('Could not save homepage content to localStorage:', e);
   }
 
-  // Primary Supabase cloud database persistence
+  // 2. Primary Supabase cloud database persistence
   if (isSupabaseConfigured()) {
     const payload = {
       id: 'published',
@@ -455,6 +455,23 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
       throw new Error(`Database Save Error: ${error.message}. Changes could not be published to Supabase.`);
     }
 
+    // Dual-write products to homepage_products table for full database alignment
+    if (Array.isArray(normalized.products)) {
+      try {
+        for (const p of normalized.products) {
+          await supabase.from('homepage_products').upsert({
+            id: p.id,
+            category: p.category,
+            title: p.title,
+            link: p.link,
+            image_url: p.image.url,
+            image_alt: p.image.alt || p.title,
+            updated_at: new Date().toISOString()
+          });
+        }
+      } catch {}
+    }
+
     // Sync local JSON backup asynchronously if dev server is running
     fetch('/api/homepage-content', {
       method: 'POST',
@@ -483,32 +500,25 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
         .single();
 
       if (!error && data) {
-        return normalizeHomepageContent(data);
+        const normalized = normalizeHomepageContent(data);
+        try {
+          localStorage.setItem('parallax_homepage_content', JSON.stringify(normalized));
+        } catch {}
+        return normalized;
       } else if (error) {
         console.warn('Supabase homepage_content query notice:', error.message);
+        if (error.code === 'PGRST116' || error.message?.includes('0 rows') || error.message?.includes('multiple')) {
+          console.log('Seeding initial homepage_content row in Supabase...');
+          await savePublishedHomepageContent(DEFAULT_HOMEPAGE_CONTENT).catch(() => {});
+          return normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
+        }
       }
     } catch (err) {
       console.warn('Supabase getPublishedHomepageContent error:', err);
     }
   }
 
-  // Fallback to static JSON / defaults if database record does not exist yet
-  try {
-    const res = await fetch('/api/homepage-content', { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      return normalizeHomepageContent(data);
-    }
-    const fallbackRes = await fetch('/data/homepage-content.json', { cache: 'no-store' });
-    if (fallbackRes.ok) {
-      const data = await fallbackRes.json();
-      return normalizeHomepageContent(data);
-    }
-  } catch (err) {
-    console.warn('Could not fetch homepage content from API, using defaults:', err);
-  }
-
-  // Check localStorage as final fallback if offline
+  // Check localStorage SECOND if Supabase is offline or unconfigured
   try {
     const localData = localStorage.getItem('parallax_homepage_content');
     if (localData) {

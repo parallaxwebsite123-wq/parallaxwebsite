@@ -224,7 +224,7 @@ export default function Home() {
   const heroMobileSrc = activeHeroBanner.mobile.url || heroDesktopSrc;
   const heroMobileAlt = activeHeroBanner.mobile.alt || heroDesktopAlt;
 
-  const productList = content?.products && content.products.length === 5 
+  const productList = (content?.products && content.products.length > 0) 
     ? content.products 
     : DEFAULT_PRODUCTS;
   
