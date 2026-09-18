@@ -415,7 +415,7 @@ export default function Home() {
             {/* Left Column — Capabilities Carousel Frame (~58% width) */}
             <MotionReveal delay={0.2} className="lg:col-span-7 h-full">
               <div 
-                className="w-full min-h-[440px] lg:min-h-[580px] h-full rounded-2xl md:rounded-3xl overflow-hidden relative group block shadow-md hover:shadow-xl transition-all duration-500 border border-black/5 bg-surface-bright"
+                className="w-full aspect-[535/378] lg:aspect-auto lg:min-h-[580px] h-full rounded-2xl md:rounded-3xl overflow-hidden relative group block shadow-md hover:shadow-xl transition-all duration-500 border border-black/5 bg-surface-bright"
               >
                 {/* Horizontal Slide Track */}
                 <div 
@@ -423,15 +423,19 @@ export default function Home() {
                   style={{ transform: `translateX(-${currentCapIdx * 100}%)` }}
                 >
                   {capabilityBanners.map((banner, idx) => {
-                    const capSrc = banner.desktop?.url || content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA";
+                    const desktopUrl = banner.desktop?.url || content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA";
+                    const mobileUrl = banner.mobile?.url || desktopUrl;
                     const capAlt = banner.desktop?.alt || "Manufacturing Capabilities";
                     return (
                       <div key={banner.id || idx} className="w-full h-full shrink-0 relative">
-                        <img 
-                          src={capSrc} 
-                          alt={capAlt} 
-                          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 block" 
-                        />
+                        <picture className="w-full h-full block">
+                          <source media="(max-width: 767px)" srcSet={mobileUrl} />
+                          <img 
+                            src={desktopUrl} 
+                            alt={capAlt} 
+                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 block" 
+                          />
+                        </picture>
                       </div>
                     );
                   })}

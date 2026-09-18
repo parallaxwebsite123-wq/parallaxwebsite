@@ -1542,7 +1542,7 @@ export default function AdminDashboard() {
                               </div>
                               <p className="font-body-md text-xs text-on-surface-variant leading-relaxed">
                                 • <strong>Desktop Frame Resolution:</strong> 1200 × 900 PX (Aspect Ratio 4:3) or 1600 × 1200 PX (Minimum height: 580px)<br />
-                                • <strong>Mobile Frame Resolution:</strong> 800 × 600 PX (Aspect Ratio 4:3)
+                                • <strong>Mobile Frame Resolution:</strong> 535 × 378 PX (Aspect Ratio 535:378)
                               </p>
                             </div>
 
@@ -1551,7 +1551,7 @@ export default function AdminDashboard() {
                               sectionKey="capabilities"
                               banners={cmsContent.capabilities?.banners || []}
                               recommendedDesktopSpec="RECOMMENDED: 1200 × 900 PX"
-                              recommendedMobileSpec="RECOMMENDED: 800 × 600 PX"
+                              recommendedMobileSpec="RECOMMENDED: 535 × 378 PX"
                               onSaveBanners={async (newBanners) => {
                                 const updatedCapabilities = {
                                   ...cmsContent.capabilities,
