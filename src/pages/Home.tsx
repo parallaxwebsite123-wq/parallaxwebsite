@@ -230,13 +230,66 @@ export default function Home() {
   
   const marqueeItems = [...productList, ...productList];
 
-  const activeCapabilityImage = (openCapability >= 0 && content?.capabilities?.items?.[openCapability]?.image?.url)
-    ? content.capabilities.items[openCapability].image.url
-    : (content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA");
+  const capabilityBanners = content?.capabilities?.banners && content.capabilities.banners.length > 0
+    ? content.capabilities.banners
+    : [
+        {
+          id: 'cap-default-1',
+          order: 1,
+          desktop: {
+            url: content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA",
+            alt: "Fine Fragrance Manufacturing"
+          },
+          mobile: {
+            url: content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA",
+            alt: "Fine Fragrance Manufacturing"
+          }
+        },
+        {
+          id: 'cap-default-2',
+          order: 2,
+          desktop: {
+            url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBMdbLYDwtvawQ8hBII-JwKaecMQyRXAQmQtv8cDDv55u7HI87JZVsTGNCImOkuwbEHZ6pl5T_-LVBNd7KBegBdENHJ1DXgLYFgVAZJXO7D9Gc-B7iv1IEhyk2SwERlK-gtZsDvzFOmIwgQpjT0ssjASyHky8KrrRJD7O3QT9E-4zwJwtYYbpvG5C5QDjYBs2w-wTyEtGXZcjkhGnDF_-DxOMo9ezOMs7PNHIPdLMwoiyf6xEquI4IaTA",
+            alt: "Custom Fragrance Development"
+          },
+          mobile: {
+            url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBMdbLYDwtvawQ8hBII-JwKaecMQyRXAQmQtv8cDDv55u7HI87JZVsTGNCImOkuwbEHZ6pl5T_-LVBNd7KBegBdENHJ1DXgLYFgVAZJXO7D9Gc-B7iv1IEhyk2SwERlK-gtZsDvzFOmIwgQpjT0ssjASyHky8KrrRJD7O3QT9E-4zwJwtYYbpvG5C5QDjYBs2w-wTyEtGXZcjkhGnDF_-DxOMo9ezOMs7PNHIPdLMwoiyf6xEquI4IaTA",
+            alt: "Custom Fragrance Development"
+          }
+        },
+        {
+          id: 'cap-default-3',
+          order: 3,
+          desktop: {
+            url: "/images/product-5.png",
+            alt: "Premium Packaging & Bottling"
+          },
+          mobile: {
+            url: "/images/product-5.png",
+            alt: "Premium Packaging & Bottling"
+          }
+        }
+      ];
 
-  const activeCapabilityAlt = (openCapability >= 0 && content?.capabilities?.items?.[openCapability]?.image?.alt)
-    ? content.capabilities.items[openCapability].image.alt
-    : (content?.capabilities?.mainFineFragrance?.alt || "Fine Fragrance Manufacturing");
+  const [currentCapIdx, setCurrentCapIdx] = useState(0);
+
+  useEffect(() => {
+    if (capabilityBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentCapIdx((prev) => (prev + 1) % capabilityBanners.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [capabilityBanners.length]);
+
+  useEffect(() => {
+    if (openCapability >= 0 && openCapability < capabilityBanners.length) {
+      setCurrentCapIdx(openCapability % capabilityBanners.length);
+    }
+  }, [openCapability, capabilityBanners.length]);
+
+  const activeCapBanner = capabilityBanners[currentCapIdx] || capabilityBanners[0];
+  const activeCapSrc = activeCapBanner.desktop.url || content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA";
+  const activeCapAlt = activeCapBanner.desktop.alt || "Manufacturing Capabilities";
 
   return (
     <div className="text-on-surface font-body-md text-body-md antialiased relative min-h-screen flex flex-col">
@@ -328,12 +381,9 @@ export default function Home() {
                     alt={item.image?.alt || item.title} 
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 block" 
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent opacity-90 group-hover:opacity-100 transition-opacity"></div>
-                  <div className="absolute bottom-0 left-0 p-6 md:p-8 text-white z-10">
-                    <span className="font-label-sm text-xs uppercase tracking-widest text-secondary-fixed-dim block mb-1">
-                      {item.category}
-                    </span>
-                    <h3 className="font-headline-md text-xl md:text-2xl font-bold">
+                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none opacity-90 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white z-10">
+                    <h3 className="font-headline-md text-xl md:text-2xl font-bold [text-shadow:_0_1px_3px_rgba(0,0,0,0.6)]">
                       {item.title}
                     </h3>
                   </div>
@@ -362,19 +412,53 @@ export default function Home() {
           </MotionReveal>
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Left Column — Fine Fragrance Card (~58% width) - Visual Container (No Marketplace Link) */}
+            {/* Left Column — Capabilities Carousel Frame (~58% width) */}
             <MotionReveal delay={0.2} className="lg:col-span-7 h-full">
               <div 
                 className="w-full min-h-[440px] lg:min-h-[580px] h-full rounded-2xl md:rounded-3xl overflow-hidden relative group block shadow-md hover:shadow-xl transition-all duration-500 border border-black/5 bg-surface-bright"
               >
-                <img 
-                  key={activeCapabilityImage}
-                  src={activeCapabilityImage} 
-                  alt={activeCapabilityAlt} 
-                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-500 ease-in-out block absolute inset-0 animate-fade-in" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent opacity-90 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute bottom-0 left-0 p-8 md:p-10 text-white z-10 w-full pointer-events-none">
+                {/* Horizontal Slide Track */}
+                <div 
+                  className="flex w-full h-full transition-transform duration-700 ease-in-out"
+                  style={{ transform: `translateX(-${currentCapIdx * 100}%)` }}
+                >
+                  {capabilityBanners.map((banner, idx) => {
+                    const capSrc = banner.desktop?.url || content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA";
+                    const capAlt = banner.desktop?.alt || "Manufacturing Capabilities";
+                    return (
+                      <div key={banner.id || idx} className="w-full h-full shrink-0 relative">
+                        <img 
+                          src={capSrc} 
+                          alt={capAlt} 
+                          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 block" 
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent opacity-90 group-hover:opacity-100 transition-opacity pointer-events-none z-10"></div>
+                
+                {/* Dots Indicator for Carousel Navigation */}
+                {capabilityBanners.length > 1 && (
+                  <div className="absolute top-6 right-6 flex items-center gap-2 z-20 bg-black/40 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-md">
+                    {capabilityBanners.map((banner, idx) => (
+                      <button
+                        key={banner.id}
+                        type="button"
+                        onClick={() => setCurrentCapIdx(idx)}
+                        className={`w-2.5 h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
+                          currentCapIdx === idx
+                            ? 'bg-white w-6'
+                            : 'bg-white/50 hover:bg-white/80'
+                        }`}
+                        aria-label={`Go to capability slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="absolute bottom-0 left-0 p-8 md:p-10 text-white z-20 w-full pointer-events-none">
                   <CapacityCounter />
                 </div>
               </div>

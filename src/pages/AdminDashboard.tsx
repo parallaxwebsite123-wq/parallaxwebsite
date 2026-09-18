@@ -45,11 +45,19 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
     getThumbnailUrl: (content) => content.products?.[0]?.image?.url || '/images/product-4.png',
     getThumbnailAlt: (content) => content.products?.[0]?.title || 'Product Display',
   },
+  {
+    id: 'capabilities',
+    title: 'Manufacturing Capabilities Frame',
+    shortDesc: 'Manage carousel images displayed inside the left frame of the Manufacturing Capabilities section.',
+    itemCountText: (content) => `${content.capabilities?.banners?.length || 1} Banners`,
+    getThumbnailUrl: (content) => content.capabilities?.banners?.[0]?.desktop?.url || content.capabilities?.mainFineFragrance?.url || '',
+    getThumbnailAlt: (content) => content.capabilities?.banners?.[0]?.desktop?.alt || 'Manufacturing Capabilities',
+  },
 ];
 
 interface BannerListEditorProps {
   sectionTitle: string;
-  sectionKey: 'hero' | 'about';
+  sectionKey: 'hero' | 'about' | 'capabilities';
   banners: BannerItem[];
   recommendedDesktopSpec: string;
   recommendedMobileSpec: string;
@@ -414,7 +422,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'homepage' | 'video' | 'leads' | 'marketplace'>('homepage');
   const [activeHomepageSection, setActiveHomepageSection] = useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = useState<'hero' | 'about' | 'products' | null>('hero');
+  const [expandedSection, setExpandedSection] = useState<'hero' | 'about' | 'products' | 'capabilities' | null>('hero');
 
   useEffect(() => {
     setActiveHomepageSection(null);
@@ -1478,6 +1486,88 @@ export default function AdminDashboard() {
                                 );
                               })}
                             </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. MANUFACTURING CAPABILITIES SECTION */}
+                      <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
+                        {/* Collapsed/Expanded Row Header */}
+                        <div
+                          onClick={() => setExpandedSection(prev => prev === 'capabilities' ? null : 'capabilities')}
+                          className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/40 transition-colors bg-white/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* THUMBNAIL */}
+                            <div className="w-20 sm:w-28 aspect-[4/3] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
+                              <img 
+                                src={cmsContent.capabilities?.banners?.[0]?.desktop?.url || cmsContent.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA"} 
+                                alt="Manufacturing Capabilities Preview" 
+                                className="w-full h-full object-contain block bg-black/5"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">Manufacturing Capabilities Frame</h2>
+                                <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                                  {cmsContent.capabilities?.banners?.length || 1} Banners
+                                </span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant mt-1 truncate">
+                                Left-side image frame carousel in Manufacturing Capabilities section
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider hidden sm:inline-block">
+                              {expandedSection === 'capabilities' ? 'Collapse' : 'Expand'}
+                            </span>
+                            <div className="w-8 h-8 rounded-full bg-white/60 border border-white/80 flex items-center justify-center text-primary shadow-sm">
+                              <span className="material-symbols-outlined text-xl transition-transform duration-300 font-bold">
+                                {expandedSection === 'capabilities' ? 'expand_less' : 'expand_more'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded Content Body */}
+                        {expandedSection === 'capabilities' && (
+                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-6 bg-white/20 transition-all duration-300">
+                            {/* Frame Resolution Specification Box */}
+                            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-1">
+                              <div className="flex items-center gap-2 text-primary font-headline-md text-xs font-bold uppercase tracking-wider">
+                                <span className="material-symbols-outlined text-base">aspect_ratio</span>
+                                <span>Recommended Frame Image Resolution & Specifications</span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant leading-relaxed">
+                                • <strong>Desktop Frame Resolution:</strong> 1200 × 900 PX (Aspect Ratio 4:3) or 1600 × 1200 PX (Minimum height: 580px)<br />
+                                • <strong>Mobile Frame Resolution:</strong> 800 × 600 PX (Aspect Ratio 4:3)
+                              </p>
+                            </div>
+
+                            <BannerListEditor
+                              sectionTitle="Manufacturing Capabilities Frame"
+                              sectionKey="capabilities"
+                              banners={cmsContent.capabilities?.banners || []}
+                              recommendedDesktopSpec="RECOMMENDED: 1200 × 900 PX"
+                              recommendedMobileSpec="RECOMMENDED: 800 × 600 PX"
+                              onSaveBanners={async (newBanners) => {
+                                const updatedCapabilities = {
+                                  ...cmsContent.capabilities,
+                                  mainFineFragrance: newBanners[0]?.desktop || cmsContent.capabilities?.mainFineFragrance || DEFAULT_HOMEPAGE_CONTENT.capabilities!.mainFineFragrance,
+                                  banners: newBanners,
+                                  items: cmsContent.capabilities?.items || DEFAULT_HOMEPAGE_CONTENT.capabilities!.items
+                                };
+                                const updatedContent: HomepageContent = {
+                                  ...cmsContent,
+                                  capabilities: updatedCapabilities
+                                };
+                                await savePublishedHomepageContent(updatedContent);
+                                setCmsContent(updatedContent);
+                              }}
+                              showNotification={showNotification}
+                            />
                           </div>
                         )}
                       </div>

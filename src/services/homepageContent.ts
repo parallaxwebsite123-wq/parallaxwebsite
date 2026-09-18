@@ -31,6 +31,7 @@ export interface CapabilityItem {
 
 export interface CapabilitiesSection {
   mainFineFragrance: ImageMeta;
+  banners?: BannerItem[];
   items: CapabilityItem[];
 }
 
@@ -175,6 +176,50 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA',
       alt: 'Main Fine Fragrance'
     },
+    banners: [
+      {
+        id: 'cap-banner-1',
+        order: 1,
+        desktop: {
+          url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA',
+          alt: 'Fine Fragrance Manufacturing'
+        },
+        mobile: {
+          url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA',
+          alt: 'Fine Fragrance Manufacturing'
+        },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      },
+      {
+        id: 'cap-banner-2',
+        order: 2,
+        desktop: {
+          url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBMdbLYDwtvawQ8hBII-JwKaecMQyRXAQmQtv8cDDv55u7HI87JZVsTGNCImOkuwbEHZ6pl5T_-LVBNd7KBegBdENHJ1DXgLYFgVAZJXO7D9Gc-B7iv1IEhyk2SwERlK-gtZsDvzFOmIwgQpjT0ssjASyHky8KrrRJD7O3QT9E-4zwJwtYYbpvG5C5QDjYBs2w-wTyEtGXZcjkhGnDF_-DxOMo9ezOMs7PNHIPdLMwoiyf6xEquI4IaTA',
+          alt: 'Custom Fragrance Development'
+        },
+        mobile: {
+          url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBMdbLYDwtvawQ8hBII-JwKaecMQyRXAQmQtv8cDDv55u7HI87JZVsTGNCImOkuwbEHZ6pl5T_-LVBNd7KBegBdENHJ1DXgLYFgVAZJXO7D9Gc-B7iv1IEhyk2SwERlK-gtZsDvzFOmIwgQpjT0ssjASyHky8KrrRJD7O3QT9E-4zwJwtYYbpvG5C5QDjYBs2w-wTyEtGXZcjkhGnDF_-DxOMo9ezOMs7PNHIPdLMwoiyf6xEquI4IaTA',
+          alt: 'Custom Fragrance Development'
+        },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      },
+      {
+        id: 'cap-banner-3',
+        order: 3,
+        desktop: {
+          url: '/images/product-5.png',
+          alt: 'Premium Packaging & Bottling'
+        },
+        mobile: {
+          url: '/images/product-5.png',
+          alt: 'Premium Packaging & Bottling'
+        },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
     items: [
       {
         id: 'white-label-manufacturing',
