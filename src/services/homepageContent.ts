@@ -332,7 +332,7 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
   };
 }
 
-export async function uploadAdminImage(file: File): Promise<{ url: string; filename: string }> {
+export async function uploadAdminImage(file: File, folderPath: string = 'homepage'): Promise<{ url: string; filename: string }> {
   if (file.size > 10 * 1024 * 1024) {
     throw new Error('Image upload failed: File size exceeds 10MB limit.');
   }
@@ -345,7 +345,8 @@ export async function uploadAdminImage(file: File): Promise<{ url: string; filen
   if (isSupabaseConfigured()) {
     try {
       const ext = file.name.split('.').pop() || 'png';
-      const cleanFileName = `homepage/img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+      const cleanPath = folderPath.replace(/\/+$/, '');
+      const cleanFileName = `${cleanPath}/img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
       
       const { error: uploadError } = await supabase.storage
         .from('website-assets')

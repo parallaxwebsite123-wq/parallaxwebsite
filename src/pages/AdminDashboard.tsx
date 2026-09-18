@@ -889,7 +889,8 @@ export default function AdminDashboard() {
 
       // 1. Upload new image if a file was selected from local disk
       if (file) {
-        const uploaded = await uploadAdminImage(file);
+        const folderPath = `homepage/products/${productId}`;
+        const uploaded = await uploadAdminImage(file, folderPath);
         imageUrl = uploaded.url;
       }
 
@@ -1050,9 +1051,19 @@ export default function AdminDashboard() {
             </a>
             <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors duration-300 uppercase tracking-widest active:scale-95 transition-transform" to="/marketplace">Marketplace</Link>
           </nav>
-          <div className="flex gap-4">
-            <div className="text-primary bg-white/40 shadow-inner p-2 rounded-full">
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>admin_panel_settings</span>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = '/admin/login';
+              }}
+              className="font-label-sm text-[10px] uppercase tracking-widest text-primary hover:text-white border border-primary hover:bg-primary px-3 py-1.5 rounded-lg transition-all duration-300 active:scale-95 flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[14px]">logout</span>
+              Sign Out
+            </button>
+            <div className="text-primary bg-white/40 shadow-inner p-2 rounded-full flex items-center justify-center h-9 w-9">
+              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>admin_panel_settings</span>
             </div>
           </div>
         </div>
