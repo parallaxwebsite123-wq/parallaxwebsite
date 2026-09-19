@@ -7,7 +7,7 @@ interface MarketplaceBannerProps {
 }
 
 export default function MarketplaceBanner({ title, subtitle, imageSrc }: MarketplaceBannerProps) {
-  const bannerImage = imageSrc || '/images/fragrance-library-banner.png';
+  const bannerImage = (imageSrc && imageSrc.trim()) ? imageSrc.trim() : '/images/fragrance-library-banner.png';
 
   return (
     <section className="w-full relative overflow-hidden bg-surface-bright min-h-[260px] sm:min-h-[320px] md:min-h-[380px] lg:min-h-[420px] flex items-center">

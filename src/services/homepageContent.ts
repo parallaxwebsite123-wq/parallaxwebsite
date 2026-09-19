@@ -366,7 +366,13 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
   const mobileHeroData = raw?.mobile_hero || raw?.mobileHero || DEFAULT_HOMEPAGE_CONTENT.mobileHero;
   const aboutBannerData = raw?.about_banner || raw?.aboutBanner || DEFAULT_HOMEPAGE_CONTENT.aboutBanner;
   const aboutMobileBannerData = raw?.about_mobile_banner || raw?.aboutMobileBanner || DEFAULT_HOMEPAGE_CONTENT.aboutMobileBanner;
-  const marketplaceBannerData = raw?.marketplace_banner || raw?.marketplaceBanner || DEFAULT_HOMEPAGE_CONTENT.marketplaceBanner;
+  const marketplaceBannerData =
+    raw?.marketplace_banner ||
+    raw?.marketplaceBanner ||
+    raw?.about_banner?.marketplace_banner ||
+    raw?.aboutBanner?.marketplaceBanner ||
+    raw?.hero?.marketplace_banner ||
+    DEFAULT_HOMEPAGE_CONTENT.marketplaceBanner;
 
   const defaultHeroDesktop = DEFAULT_HOMEPAGE_CONTENT.hero.image;
   const defaultHeroMobile = DEFAULT_HOMEPAGE_CONTENT.mobileHero!.image;
@@ -451,17 +457,9 @@ export async function uploadAdminImage(file: File, folderPath: string = 'homepag
           return { url: publicUrlData.publicUrl, filename: cleanFileName };
         }
       } else {
-        console.error('Supabase storage upload error:', uploadError.message);
-        if (uploadError.message?.includes('not found') || uploadError.message?.includes('Bucket')) {
-          console.warn('Bucket "website-assets" not found in Supabase Storage. Falling back to Data URL encoding.');
-        } else {
-          throw new Error(`Supabase Storage upload error: ${uploadError.message}`);
-        }
+        console.warn('Supabase storage upload error, falling back to Data URL encoding:', uploadError.message);
       }
     } catch (err: any) {
-      if (err.message && err.message.includes('Supabase Storage upload error')) {
-        throw err;
-      }
       console.warn('Supabase storage upload exception, using fallback encoding:', err);
     }
   }
@@ -513,7 +511,7 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
 
   // 2. Primary Supabase cloud database persistence
   if (isSupabaseConfigured()) {
-    const payload = {
+    const payload: any = {
       id: 'published',
       hero: {
         image: normalized.hero.image,
@@ -524,7 +522,8 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
       },
       about_banner: {
         image: normalized.aboutBanner?.image,
-        banners: normalized.aboutBanner?.banners
+        banners: normalized.aboutBanner?.banners,
+        marketplace_banner: normalized.marketplaceBanner
       },
       about_mobile_banner: {
         image: normalized.aboutMobileBanner?.image
@@ -538,9 +537,19 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
       updated_at: new Date().toISOString()
     };
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('homepage_content')
       .upsert(payload);
+
+    // If column marketplace_banner is missing in Postgres schema cache on live, strip top-level column and retry upsert safely
+    if (error && (error.code === 'PGRST204' || error.message?.includes('marketplace_banner') || error.message?.includes('column'))) {
+      console.warn('Top-level column "marketplace_banner" not found in homepage_content table. Saving inside JSONB payload.');
+      delete payload.marketplace_banner;
+      const retryResult = await supabase
+        .from('homepage_content')
+        .upsert(payload);
+      error = retryResult.error;
+    }
 
     if (error) {
       console.error('Supabase homepage_content save error:', error.message);
