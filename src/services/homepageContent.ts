@@ -50,6 +50,10 @@ export interface HomepageContent {
   aboutMobileBanner?: {
     image: ImageMeta;
   };
+  marketplaceBanner?: {
+    image: ImageMeta;
+    banners?: BannerItem[];
+  };
   products: ProductItem[];
   capabilities?: CapabilitiesSection;
 }
@@ -118,6 +122,31 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       alt: 'Parallax About Us Banner (Mobile)',
       updatedAt: 1725840000000
     }
+  },
+  marketplaceBanner: {
+    image: {
+      url: '/images/fragrance-library-banner.png',
+      alt: 'Parallax Marketplace Banner (Required: 1900 x 840 px)',
+      updatedAt: 1725840000000
+    },
+    banners: [
+      {
+        id: 'marketplace-banner-1',
+        order: 1,
+        desktop: {
+          url: '/images/fragrance-library-banner.png',
+          alt: 'Parallax Marketplace Banner (1900 x 840 px)',
+          updatedAt: 1725840000000
+        },
+        mobile: {
+          url: '/images/fragrance-library-banner.png',
+          alt: 'Parallax Marketplace Banner (Mobile)',
+          updatedAt: 1725840000000
+        },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ]
   },
   products: [
     {
@@ -337,11 +366,13 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
   const mobileHeroData = raw?.mobile_hero || raw?.mobileHero || DEFAULT_HOMEPAGE_CONTENT.mobileHero;
   const aboutBannerData = raw?.about_banner || raw?.aboutBanner || DEFAULT_HOMEPAGE_CONTENT.aboutBanner;
   const aboutMobileBannerData = raw?.about_mobile_banner || raw?.aboutMobileBanner || DEFAULT_HOMEPAGE_CONTENT.aboutMobileBanner;
+  const marketplaceBannerData = raw?.marketplace_banner || raw?.marketplaceBanner || DEFAULT_HOMEPAGE_CONTENT.marketplaceBanner;
 
   const defaultHeroDesktop = DEFAULT_HOMEPAGE_CONTENT.hero.image;
   const defaultHeroMobile = DEFAULT_HOMEPAGE_CONTENT.mobileHero!.image;
   const defaultAboutDesktop = DEFAULT_HOMEPAGE_CONTENT.aboutBanner!.image;
   const defaultAboutMobile = DEFAULT_HOMEPAGE_CONTENT.aboutMobileBanner!.image;
+  const defaultMarketplaceDesktop = DEFAULT_HOMEPAGE_CONTENT.marketplaceBanner!.image;
 
   const heroBanners = normalizeBanners(
     heroData?.banners,
@@ -355,6 +386,13 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
     aboutBannerData?.image || defaultAboutDesktop,
     aboutMobileBannerData?.image || defaultAboutMobile,
     'about-banner'
+  );
+
+  const marketplaceBanners = normalizeBanners(
+    marketplaceBannerData?.banners,
+    marketplaceBannerData?.image || defaultMarketplaceDesktop,
+    marketplaceBannerData?.image || defaultMarketplaceDesktop,
+    'marketplace-banner'
   );
 
   return {
@@ -371,6 +409,10 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
     },
     aboutMobileBanner: {
       image: aboutBanners[0]?.mobile || aboutMobileBannerData?.image || defaultAboutMobile
+    },
+    marketplaceBanner: {
+      image: marketplaceBanners[0]?.desktop || marketplaceBannerData?.image || defaultMarketplaceDesktop,
+      banners: marketplaceBanners
     },
     products: normalizeProducts(raw?.products),
     capabilities: raw?.capabilities || DEFAULT_HOMEPAGE_CONTENT.capabilities
@@ -486,6 +528,10 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
       },
       about_mobile_banner: {
         image: normalized.aboutMobileBanner?.image
+      },
+      marketplace_banner: {
+        image: normalized.marketplaceBanner?.image,
+        banners: normalized.marketplaceBanner?.banners
       },
       products: normalized.products,
       capabilities: normalized.capabilities || null,

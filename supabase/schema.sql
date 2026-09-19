@@ -55,7 +55,29 @@ CREATE TABLE IF NOT EXISTS public.capabilities (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 5. SITE SETTINGS TABLE
+-- 5. FRAGRANCES TABLE (Fragrance Library)
+CREATE TABLE IF NOT EXISTS public.fragrances (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL,
+  name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  family TEXT NOT NULL,
+  profile TEXT NOT NULL,
+  format TEXT NOT NULL,
+  longevity TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  image_alt TEXT DEFAULT '',
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Index for category, family, and title searching
+CREATE INDEX IF NOT EXISTS idx_fragrances_category ON public.fragrances(category);
+CREATE INDEX IF NOT EXISTS idx_fragrances_family ON public.fragrances(family);
+
+-- 6. SITE SETTINGS TABLE
 CREATE TABLE IF NOT EXISTS public.site_settings (
   key TEXT PRIMARY KEY,
   value JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -87,6 +109,7 @@ ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.homepage_content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.homepage_products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.capabilities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fragrances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 
 -- ------------------------------------------------------------------------------
@@ -129,6 +152,10 @@ DROP POLICY IF EXISTS "Public select capabilities" ON public.capabilities;
 CREATE POLICY "Public select capabilities" 
   ON public.capabilities FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public select fragrances" ON public.fragrances;
+CREATE POLICY "Public select fragrances" 
+  ON public.fragrances FOR SELECT USING (true);
+
 DROP POLICY IF EXISTS "Public select site_settings" ON public.site_settings;
 CREATE POLICY "Public select site_settings" 
   ON public.site_settings FOR SELECT USING (true);
@@ -145,6 +172,10 @@ CREATE POLICY "Admin manage homepage_products"
 DROP POLICY IF EXISTS "Admin manage capabilities" ON public.capabilities;
 CREATE POLICY "Admin manage capabilities" 
   ON public.capabilities FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Admin manage fragrances" ON public.fragrances;
+CREATE POLICY "Admin manage fragrances" 
+  ON public.fragrances FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Admin manage site_settings" ON public.site_settings;
 CREATE POLICY "Admin manage site_settings" 

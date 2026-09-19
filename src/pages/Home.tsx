@@ -400,9 +400,6 @@ export default function Home() {
               <h2 className="font-headline-md text-headline-md text-primary">Manufacturing Capabilities</h2>
               <div className="hidden sm:block h-px flex-grow mx-4 md:mx-6 bg-gradient-to-r from-transparent via-outline-variant to-transparent opacity-50"></div>
               <div className="flex items-center gap-6 shrink-0">
-                <span className="font-label-sm text-xs uppercase tracking-wider text-primary/80 font-bold bg-primary/10 px-3.5 py-1.5 rounded-full border border-primary/20 whitespace-nowrap">
-                  10K+ Monthly Manufacturing capacity
-                </span>
                 <Link className="hidden lg:inline-flex font-label-sm text-label-sm text-secondary uppercase tracking-widest hover:text-primary transition-colors items-center gap-2 group shrink-0" to="/marketplace">
                   View Marketplace
                   <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
@@ -412,10 +409,10 @@ export default function Home() {
           </MotionReveal>
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Left Column — Capabilities Carousel Frame (~58% width) */}
-            <MotionReveal delay={0.2} className="lg:col-span-7 h-full">
+            {/* Left Column — Capabilities Carousel Banner (~58% width on desktop, edge-to-edge hero banner on mobile) */}
+            <MotionReveal delay={0.2} className="lg:col-span-7 h-full mb-8 lg:mb-0">
               <div 
-                className="w-full aspect-[535/378] lg:aspect-auto lg:min-h-[580px] h-full rounded-2xl md:rounded-3xl overflow-hidden relative group block shadow-md hover:shadow-xl transition-all duration-500 border border-black/5 bg-surface-bright"
+                className="-mx-6 lg:mx-0 w-[calc(100%+3rem)] lg:w-full aspect-[535/378] lg:aspect-auto lg:min-h-[580px] h-full rounded-none lg:rounded-3xl overflow-hidden relative block bg-surface-bright border-none lg:border lg:border-black/5 shadow-none lg:shadow-md"
               >
                 {/* Horizontal Slide Track */}
                 <div 
@@ -433,7 +430,7 @@ export default function Home() {
                           <img 
                             src={desktopUrl} 
                             alt={capAlt} 
-                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 block" 
+                            className="w-full h-full object-cover object-center block" 
                           />
                         </picture>
                       </div>
@@ -441,28 +438,9 @@ export default function Home() {
                   })}
                 </div>
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent opacity-90 group-hover:opacity-100 transition-opacity pointer-events-none z-10"></div>
-                
-                {/* Dots Indicator for Carousel Navigation */}
-                {capabilityBanners.length > 1 && (
-                  <div className="absolute top-6 right-6 flex items-center gap-2 z-20 bg-black/40 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-md">
-                    {capabilityBanners.map((banner, idx) => (
-                      <button
-                        key={banner.id}
-                        type="button"
-                        onClick={() => setCurrentCapIdx(idx)}
-                        className={`w-2.5 h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
-                          currentCapIdx === idx
-                            ? 'bg-white w-6'
-                            : 'bg-white/50 hover:bg-white/80'
-                        }`}
-                        aria-label={`Go to capability slide ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent pointer-events-none z-10"></div>
 
-                <div className="absolute bottom-0 left-0 p-8 md:p-10 text-white z-20 w-full pointer-events-none">
+                <div className="absolute bottom-0 left-0 p-6 md:p-8 lg:p-10 text-white z-20 w-full pointer-events-none">
                   <CapacityCounter />
                 </div>
               </div>

@@ -19,6 +19,7 @@ import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import CapabilityDetail from './pages/CapabilityDetail';
 import ProtectedRoute from './components/ProtectedRoute';
+import WhatsAppButton from './components/WhatsAppButton';
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
       </Routes>
+      <WhatsAppButton />
     </BrowserRouter>
   );
 }

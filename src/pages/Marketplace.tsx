@@ -1,58 +1,126 @@
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import MotionReveal from '../components/MotionReveal';
+import MarketplaceBanner from '../components/MarketplaceBanner';
 import { CAPABILITY_CATEGORIES } from '../data/capabilities';
-
-const FRAGRANCE_PRODUCTS = [
-  { 
-    id: "px-104",
-    title: "PX-104: Amber Resonance", 
-    family: "Woody Amber", 
-    notes: "Top: Bergamot, Pink Pepper | Heart: Iris, Olibanum | Base: Cedar, Vetiver, Amber", 
-    format: "Eau de Parfum, Extrait", 
-    longevity: "8-10 Hours", 
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA" 
-  },
-  { 
-    id: "px-209",
-    title: "PX-209: Midnight Flora", 
-    family: "Floral", 
-    notes: "Top: Mandarin | Heart: Night Jasmine, Tuberose | Base: Sandalwood, Musk", 
-    format: "Eau de Parfum, Body Mist", 
-    longevity: "6-8 Hours", 
-    img: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&q=80&w=1000" 
-  },
-  { 
-    id: "px-042",
-    title: "PX-042: Oudh Absolute", 
-    family: "Oriental", 
-    notes: "Top: Saffron | Heart: Rose, Patchouli | Base: Agarwood, Leather", 
-    format: "Attar, Extrait", 
-    longevity: "12+ Hours", 
-    img: "https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?auto=format&fit=crop&q=80&w=1000" 
-  },
-  { 
-    id: "px-311",
-    title: "PX-311: Solar Citrus", 
-    family: "Fresh Citrus", 
-    notes: "Top: Neroli, Lemon | Heart: Orange Blossom | Base: Sun-baked Clay, Musk", 
-    format: "Eau de Toilette, Room Spray", 
-    longevity: "4-6 Hours", 
-    img: "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&q=80&w=1000" 
-  }
-];
+import { fetchFragrances, FragranceItem } from '../services/fragranceService';
+import { getPublishedHomepageContent, HomepageContent } from '../services/homepageContent';
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&q=80&w=800";
+
+const CATEGORIES = [
+  "Attars",
+  "Eau de Toilette (EDT)",
+  "Eau de Parfum (EDP)",
+  "Deodorants",
+  "Sports / active fragrances",
+  "Scented and fragrance candles",
+  "Incense products",
+  "Dhoop / incense cones",
+  "Car Freshners"
+];
+
+const FAMILIES = [
+  "Woody",
+  "Fresh",
+  "Floral",
+  "Amber & Oriental",
+  "Woody Amber"
+];
 
 export default function Marketplace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawView = searchParams.get('view');
   const activeView = rawView === 'fragrances' ? 'fragrances' : 'manufacture';
 
+  const [fragrances, setFragrances] = useState<FragranceItem[]>([]);
+  const [cmsContent, setCmsContent] = useState<HomepageContent | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Filters & Search
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedFamilies, setSelectedFamilies] = useState<string[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      setLoading(true);
+      const [fragranceData, contentData] = await Promise.all([
+        fetchFragrances(),
+        getPublishedHomepageContent().catch(() => null)
+      ]);
+
+      if (isMounted) {
+        setFragrances(fragranceData);
+        if (contentData) {
+          setCmsContent(contentData);
+        }
+        setLoading(false);
+      }
+    }
+    loadData();
+    return () => { isMounted = false; };
+  }, []);
+
   const setViewMode = (mode: 'manufacture' | 'fragrances') => {
     setSearchParams({ view: mode });
   };
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const toggleFamily = (fam: string) => {
+    setSelectedFamilies(prev =>
+      prev.includes(fam) ? prev.filter(f => f !== fam) : [...prev, fam]
+    );
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategories([]);
+    setSelectedFamilies([]);
+  };
+
+  const filteredFragrances = useMemo(() => {
+    return fragrances.filter(item => {
+      // Search query filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesQuery =
+          item.title?.toLowerCase().includes(query) ||
+          item.name?.toLowerCase().includes(query) ||
+          item.code?.toLowerCase().includes(query) ||
+          item.profile?.toLowerCase().includes(query) ||
+          item.category?.toLowerCase().includes(query) ||
+          item.family?.toLowerCase().includes(query) ||
+          item.format?.toLowerCase().includes(query);
+
+        if (!matchesQuery) return false;
+      }
+
+      // Category filter
+      if (selectedCategories.length > 0) {
+        if (!selectedCategories.includes(item.category)) {
+          return false;
+        }
+      }
+
+      // Family filter
+      if (selectedFamilies.length > 0) {
+        if (!selectedFamilies.includes(item.family)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [fragrances, searchQuery, selectedCategories, selectedFamilies]);
 
   return (
     <div className="text-on-surface font-body-md text-body-md antialiased relative min-h-screen flex flex-col bg-surface-bright">
@@ -65,29 +133,29 @@ export default function Marketplace() {
       
       <Navbar />
 
-      <main className="flex-grow pt-32 pb-24">
-        {/* Page Header */}
-        <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-8 text-center">
-          <span className="font-label-sm text-xs uppercase tracking-widest text-secondary font-bold mb-2 block">
-            PARALLAX OEM & FRAGRANCE MARKETPLACE
-          </span>
-          <h1 className="font-headline-lg text-3xl sm:text-4xl md:text-headline-lg text-primary mb-4 font-bold">
-            {activeView === 'manufacture' ? 'Manufacturing Capabilities' : 'Fragrance Library'}
-          </h1>
-          <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl mx-auto">
-            {activeView === 'manufacture' 
+      <main className="flex-grow pt-24 sm:pt-28 md:pt-32 pb-24">
+        {/* Full-Width Page Hero Banner */}
+        <MarketplaceBanner
+          title={activeView === 'manufacture' ? 'Manufacturing Capabilities' : 'Fragrance Library'}
+          subtitle={
+            activeView === 'manufacture'
               ? 'Explore our full spectrum of private-label, OEM/ODM fragrance formats and custom manufacturing capabilities.'
-              : 'Explore our curated marketplace of base formulations and fragrance profiles available for private label manufacturing.'}
-          </p>
-        </div>
+              : 'Explore our curated marketplace of base formulations and fragrance profiles available for private label manufacturing.'
+          }
+          imageSrc={
+            cmsContent?.marketplaceBanner?.banners?.[0]?.desktop?.url ||
+            cmsContent?.marketplaceBanner?.image?.url
+          }
+        />
 
-        <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
+        {/* Constrained Page Content Container */}
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10">
           
-          {/* Mode Switcher Tabs — Replaces "Showing Base Formulations" */}
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-10 pb-6 border-b border-outline-variant/30">
+          {/* Mode Switcher Tabs + Search Bar */}
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-8 pb-6 border-b border-outline-variant/30">
             
-            {/* Clear Toggle Buttons */}
-            <div className="inline-flex p-1.5 bg-white/50 backdrop-blur-md rounded-full border border-white/60 shadow-sm">
+            {/* View Mode Toggle Buttons */}
+            <div className="inline-flex p-1.5 bg-white/60 backdrop-blur-md rounded-full border border-white/60 shadow-sm shrink-0 self-start md:self-auto">
               <button
                 onClick={() => setViewMode('manufacture')}
                 className={`font-label-sm text-xs uppercase tracking-widest px-6 py-2.5 rounded-full transition-all duration-300 ${
@@ -110,29 +178,45 @@ export default function Marketplace() {
               </button>
             </div>
 
-            {/* Right side info / Sort control */}
-            <div className="flex items-center gap-4">
-              <span className="font-label-sm text-xs uppercase tracking-wider text-on-surface-variant/80">
-                {activeView === 'manufacture' ? '9 Capabilities Available' : '4 Base Formulations'}
-              </span>
+            {/* Search Input & Item Count */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-grow md:max-w-xl justify-end">
               {activeView === 'fragrances' && (
-                <div className="relative">
-                  <select className="appearance-none bg-white/40 font-body-md text-xs text-primary border border-outline-variant/60 rounded-full px-5 py-2 pr-9 focus:outline-none focus:border-primary transition-colors cursor-pointer" aria-label="Sort by">
-                    <option>Most Popular</option>
-                    <option>Newest Developments</option>
-                    <option>Highest Concentration</option>
-                  </select>
-                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-primary text-sm">expand_more</span>
+                <div className="relative flex-grow">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search fragrance, notes, profile, category..."
+                    className="w-full bg-white/70 backdrop-blur-md font-body-md text-xs sm:text-sm text-primary border border-outline-variant/60 rounded-full pl-10 pr-10 py-2.5 focus:outline-none focus:border-primary transition-all placeholder:text-on-surface-variant/50 shadow-sm"
+                  />
+                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/70 text-sm pointer-events-none">
+                    search
+                  </span>
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary text-sm"
+                      title="Clear search"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  )}
                 </div>
               )}
+
+              <span className="font-label-sm text-xs uppercase tracking-wider text-on-surface-variant/80 shrink-0 self-end sm:self-center">
+                {activeView === 'manufacture'
+                  ? `${CAPABILITY_CATEGORIES.length} Capabilities Available`
+                  : `${filteredFragrances.length} Formulations Found`}
+              </span>
             </div>
           </div>
 
-          {/* VIEW MODE 1 — MANUFACTURE GRID (2-COLUMN MOBILE, 5-COLUMN DESKTOP LAYOUT) */}
+          {/* VIEW MODE 1 — MANUFACTURE GRID */}
           {activeView === 'manufacture' && (
             <MotionReveal>
               <div className="space-y-6">
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
                   {CAPABILITY_CATEGORIES.map((cat, idx) => (
                     <Link
                       key={cat.id}
@@ -177,114 +261,178 @@ export default function Marketplace() {
 
           {/* VIEW MODE 2 — FRAGRANCES LIBRARY */}
           {activeView === 'fragrances' && (
-            <div className="flex flex-col lg:flex-row gap-8">
-              {/* Filters Sidebar */}
-              <aside className="w-full lg:w-64 shrink-0">
-                <div className="glass-panel rounded-2xl p-6 sticky top-32 border border-white/50">
-                  <h2 className="font-label-sm text-xs text-primary uppercase tracking-widest border-b border-outline-variant/50 pb-4 mb-6 font-bold">Refine Search</h2>
+            <div className="flex flex-col lg:flex-row gap-8 items-start">
+              
+              {/* Left Filters Sidebar */}
+              <aside className="w-full lg:w-72 shrink-0">
+                <div className="glass-panel rounded-2xl p-5 sm:p-6 sticky top-28 border border-white/50 shadow-sm">
+                  <div className="flex justify-between items-center border-b border-outline-variant/50 pb-4 mb-6">
+                    <h2 className="font-label-sm text-xs text-primary uppercase tracking-widest font-bold">
+                      Refine Search
+                    </h2>
+                    {(selectedCategories.length > 0 || selectedFamilies.length > 0 || searchQuery) && (
+                      <button
+                        onClick={clearFilters}
+                        className="text-[11px] text-secondary hover:underline uppercase tracking-wider font-semibold"
+                      >
+                        Reset All
+                      </button>
+                    )}
+                  </div>
                   
+                  {/* Product Category Filter */}
                   <div className="mb-8">
-                    <h3 className="font-body-lg text-sm text-primary font-bold mb-4">Product Category</h3>
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors" defaultChecked />
-                        <span className="font-body-md text-xs text-on-surface-variant group-hover:text-primary transition-colors">Fine Fragrance</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors" />
-                        <span className="font-body-md text-xs text-on-surface-variant group-hover:text-primary transition-colors">Home & Ambient</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors" />
-                        <span className="font-body-md text-xs text-on-surface-variant group-hover:text-primary transition-colors">Personal Care</span>
-                      </label>
+                    <h3 className="font-body-lg text-xs font-bold text-primary uppercase tracking-wider mb-3">
+                      Product Category
+                    </h3>
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {CATEGORIES.map(cat => {
+                        const checked = selectedCategories.includes(cat);
+                        return (
+                          <label key={cat} className="flex items-center gap-2.5 cursor-pointer group select-none">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCategory(cat)}
+                              className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors shrink-0 cursor-pointer"
+                            />
+                            <span className={`font-body-md text-xs transition-colors ${
+                              checked ? 'text-primary font-bold' : 'text-on-surface-variant group-hover:text-primary'
+                            }`}>
+                              {cat}
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
+                  {/* Fragrance Family Filter */}
                   <div>
-                    <h3 className="font-body-lg text-sm text-primary font-bold mb-4">Fragrance Family</h3>
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors" />
-                        <span className="font-body-md text-xs text-on-surface-variant group-hover:text-primary transition-colors">Woody</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors" />
-                        <span className="font-body-md text-xs text-on-surface-variant group-hover:text-primary transition-colors">Fresh</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors" />
-                        <span className="font-body-md text-xs text-on-surface-variant group-hover:text-primary transition-colors">Floral</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors" />
-                        <span className="font-body-md text-xs text-on-surface-variant group-hover:text-primary transition-colors">Amber & Oriental</span>
-                      </label>
+                    <h3 className="font-body-lg text-xs font-bold text-primary uppercase tracking-wider mb-3">
+                      Fragrance Family
+                    </h3>
+                    <div className="space-y-2.5">
+                      {FAMILIES.map(fam => {
+                        const checked = selectedFamilies.includes(fam);
+                        return (
+                          <label key={fam} className="flex items-center gap-2.5 cursor-pointer group select-none">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleFamily(fam)}
+                              className="appearance-none w-4 h-4 border border-outline rounded-sm checked:bg-primary checked:border-primary transition-colors shrink-0 cursor-pointer"
+                            />
+                            <span className={`font-body-md text-xs transition-colors ${
+                              checked ? 'text-primary font-bold' : 'text-on-surface-variant group-hover:text-primary'
+                            }`}>
+                              {fam}
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               </aside>
 
-              {/* Fragrance Products Grid (2-Column Mobile, 2-Column Desktop) */}
-              <div className="flex-grow">
-                <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-2 gap-3.5 sm:gap-6">
-                  {FRAGRANCE_PRODUCTS.map((item) => (
-                    <div key={item.id} className="glass-panel glass-card-hover rounded-2xl overflow-hidden group flex flex-col md:flex-row h-auto md:h-64 border border-white/50">
-                      
-                      {/* Audited Image Frame with Fallback Handler */}
-                      <div className="relative w-full md:w-48 shrink-0 overflow-hidden bg-black/5 h-48 md:h-full">
-                        <img 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 block" 
-                          src={item.img} 
-                          alt={item.title} 
-                          onError={(e) => {
-                            // Graceful fallback image if source URL fails to load
-                            e.currentTarget.src = FALLBACK_IMAGE;
-                          }}
-                        />
+              {/* Fragrance Cards Grid */}
+              <div className="flex-grow w-full">
+                {loading ? (
+                  <div className="py-20 flex flex-col items-center justify-center text-center">
+                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="font-body-md text-sm text-on-surface-variant">Loading fragrances...</p>
+                  </div>
+                ) : filteredFragrances.length === 0 ? (
+                  <div className="glass-panel rounded-2xl p-12 text-center border border-white/50 my-4">
+                    <span className="material-symbols-outlined text-4xl text-on-surface-variant/50 mb-3 block">
+                      search_off
+                    </span>
+                    <h3 className="font-headline-md text-lg text-primary font-bold mb-2">
+                      No fragrances found matching your search.
+                    </h3>
+                    <p className="font-body-md text-xs text-on-surface-variant max-w-md mx-auto mb-6">
+                      Try clearing your search query or unchecking categories and fragrance families to see more options.
+                    </p>
+                    <button
+                      onClick={clearFilters}
+                      className="btn-primary py-2.5 px-6 text-xs uppercase tracking-widest"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+                    {filteredFragrances.map((item) => (
+                      <div
+                        key={item.id}
+                        className="glass-panel glass-card-hover rounded-2xl overflow-hidden group flex flex-col h-full border border-white/50 shadow-sm transition-all duration-300"
+                      >
+                        {/* 1. Image Header */}
+                        <div className="relative w-full aspect-[4/3] shrink-0 overflow-hidden bg-black/5">
+                          <img 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 block" 
+                            src={item.image_url || FALLBACK_IMAGE} 
+                            alt={item.title || item.name} 
+                            onError={(e) => {
+                              e.currentTarget.src = FALLBACK_IMAGE;
+                            }}
+                          />
+                          <div className="absolute top-3 left-3 bg-white/80 backdrop-blur-md px-2.5 py-1 rounded-full shadow-sm">
+                            <span className="font-label-sm text-[10px] uppercase tracking-wider text-primary font-bold">
+                              {item.family}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="p-5 flex flex-col flex-grow bg-white/20">
+                          {/* 2. Title */}
+                          <h3 className="font-headline-md text-base sm:text-lg font-bold text-primary mb-2 line-clamp-2">
+                            {item.title || item.name}
+                          </h3>
+                          
+                          {/* Metadata Stack */}
+                          <div className="space-y-2 mb-6 text-xs text-on-surface-variant flex-grow">
+                            {/* 3. Profile */}
+                            {item.profile && (
+                              <p className="font-body-md leading-relaxed">
+                                <strong className="text-primary font-semibold block sm:inline">Profile: </strong>
+                                {item.profile}
+                              </p>
+                            )}
+
+                            {/* 4. Formats */}
+                            {item.format && (
+                              <p className="font-body-md">
+                                <strong className="text-primary font-semibold">Formats: </strong> 
+                                {item.format}
+                              </p>
+                            )}
+
+                            {/* 5. Longevity */}
+                            {item.longevity && (
+                              <p className="font-body-md">
+                                <strong className="text-primary font-semibold">Longevity: </strong> 
+                                {item.longevity}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* 6. Single Centered EXPLORE Button inside card */}
+                          <div className="pt-4 border-t border-outline-variant/30 mt-auto w-full">
+                            <Link
+                              to="/build-sample"
+                              className="btn-primary w-full py-2.5 px-4 text-xs font-bold uppercase tracking-widest text-center block rounded-xl shadow-sm hover:shadow transition-all"
+                            >
+                              EXPLORE
+                            </Link>
+                          </div>
+                        </div>
                       </div>
-
-                      {/* Content */}
-                      <div className="p-6 flex flex-col flex-grow">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-headline-md text-lg font-bold text-primary">{item.title}</h3>
-                          <span className="font-label-sm text-[10px] uppercase tracking-widest bg-primary/10 text-primary px-2.5 py-1 rounded-md shrink-0 ml-4 font-bold">
-                            {item.family}
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-2 mb-4 mt-2 text-xs">
-                          <p className="font-body-md text-on-surface-variant">
-                            <strong className="text-primary font-semibold">Profile:</strong> {item.notes}
-                          </p>
-                          <p className="font-body-md text-on-surface-variant">
-                            <strong className="text-primary font-semibold">Formats:</strong> {item.format}
-                          </p>
-                          <p className="font-body-md text-on-surface-variant">
-                            <strong className="text-primary font-semibold">Longevity:</strong> {item.longevity}
-                          </p>
-                        </div>
-
-                        <div className="mt-auto pt-4 border-t border-outline-variant/30 flex justify-between items-center">
-                          <Link to="/build-sample" className="text-secondary hover:text-primary transition-colors font-label-sm text-xs uppercase tracking-widest flex items-center gap-1 font-bold">
-                            Customize Formulation
-                          </Link>
-                          <Link to="/build-sample" className="btn-primary py-2 px-4 text-xs uppercase tracking-widest">
-                            Request Sample
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-12 flex justify-center gap-2">
-                  <button className="w-9 h-9 rounded-full glass-panel flex items-center justify-center text-primary font-body-md font-bold active" aria-label="Page 1">1</button>
-                  <button className="w-9 h-9 rounded-full glass-panel flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors font-body-md" aria-label="Page 2">2</button>
-                  <button className="w-9 h-9 rounded-full glass-panel flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors font-body-md" aria-label="Next page">
-                    <span className="material-symbols-outlined text-base">chevron_right</span>
-                  </button>
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -296,3 +444,4 @@ export default function Marketplace() {
     </div>
   );
 }
+

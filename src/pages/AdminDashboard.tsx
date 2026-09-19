@@ -38,6 +38,14 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
     getThumbnailAlt: (content) => content.aboutBanner?.banners?.[0]?.desktop?.alt || 'About Us Banner',
   },
   {
+    id: 'marketplace',
+    title: 'Marketplace Banner',
+    shortDesc: 'Manage full-width hero banner imagery for Fragrance & Products Library pages (Required Size: 1900 × 840 px).',
+    itemCountText: (content) => `${content.marketplaceBanner?.banners?.length || 1} Banners`,
+    getThumbnailUrl: (content) => content.marketplaceBanner?.banners?.[0]?.desktop?.url || content.marketplaceBanner?.image?.url || '/images/fragrance-library-banner.png',
+    getThumbnailAlt: (content) => content.marketplaceBanner?.banners?.[0]?.desktop?.alt || 'Marketplace Banner',
+  },
+  {
     id: 'products',
     title: 'Product Display',
     shortDesc: 'Manage product card imagery used in the moving continuous marquee chain.',
@@ -57,7 +65,7 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
 
 interface BannerListEditorProps {
   sectionTitle: string;
-  sectionKey: 'hero' | 'about' | 'capabilities';
+  sectionKey: 'hero' | 'about' | 'capabilities' | 'marketplace';
   banners: BannerItem[];
   recommendedDesktopSpec: string;
   recommendedMobileSpec: string;
@@ -1309,7 +1317,75 @@ export default function AdminDashboard() {
                         )}
                       </div>
 
-                      {/* 3. PRODUCT DISPLAY SECTION */}
+                      {/* 3. MARKETPLACE BANNER SECTION */}
+                      <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
+                        {/* Collapsed/Expanded Row Header */}
+                        <div
+                          onClick={() => setExpandedSection(prev => prev === 'marketplace' ? null : 'marketplace')}
+                          className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/40 transition-colors bg-white/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* SINGLE FIRST / DESKTOP BANNER THUMBNAIL */}
+                            <div className="w-28 sm:w-40 aspect-[1900/840] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
+                              <img 
+                                src={cmsContent.marketplaceBanner?.banners?.[0]?.desktop?.url || cmsContent.marketplaceBanner?.image?.url || '/images/fragrance-library-banner.png'} 
+                                alt="Marketplace Banner Preview" 
+                                className="w-full h-full object-contain block bg-black/5"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">Marketplace Banner</h2>
+                                <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-secondary text-white font-bold">
+                                  REQUIRED SIZE: 1900 × 840 PX
+                                </span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant mt-1 truncate">
+                                Full-width hero banner image for Fragrance & Products Library pages
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider hidden sm:inline-block">
+                              {expandedSection === 'marketplace' ? 'Collapse' : 'Expand'}
+                            </span>
+                            <div className="w-8 h-8 rounded-full bg-white/60 border border-white/80 flex items-center justify-center text-primary shadow-sm">
+                              <span className="material-symbols-outlined text-xl transition-transform duration-300 font-bold">
+                                {expandedSection === 'marketplace' ? 'expand_less' : 'expand_more'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded Content Body */}
+                        {expandedSection === 'marketplace' && (
+                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-8 bg-white/20 transition-all duration-300">
+                            <BannerListEditor
+                              sectionTitle="Marketplace Banner"
+                              sectionKey="marketplace"
+                              banners={cmsContent.marketplaceBanner?.banners || []}
+                              recommendedDesktopSpec="REQUIRED SIZE: 1900 × 840 PX"
+                              recommendedMobileSpec="REQUIRED SIZE: 1900 × 840 PX (OR 535 × 738 PX)"
+                              onSaveBanners={async (newBanners) => {
+                                const updatedContent: HomepageContent = {
+                                  ...cmsContent,
+                                  marketplaceBanner: {
+                                    ...cmsContent.marketplaceBanner,
+                                    image: newBanners[0]?.desktop || cmsContent.marketplaceBanner?.image || { url: '/images/fragrance-library-banner.png', alt: 'Marketplace Banner' },
+                                    banners: newBanners
+                                  }
+                                };
+                                await savePublishedHomepageContent(updatedContent);
+                                setCmsContent(updatedContent);
+                              }}
+                              showNotification={showNotification}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. PRODUCT DISPLAY SECTION */}
                       <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
                         {/* Collapsed/Expanded Row Header */}
                         <div
