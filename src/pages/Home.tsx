@@ -419,9 +419,9 @@ export default function Home() {
         </section>
 
         {/* Continuous Infinite Horizontal Product Marquee */}
-        <section className="w-full mb-6 md:mb-12 relative z-10 overflow-hidden py-1">
+        <section className="w-full mb-2 md:mb-8 relative z-10 overflow-hidden py-1">
           {/* Centered Heading above moving product row */}
-          <div className="w-full text-center mb-4 md:mb-6 px-6">
+          <div className="w-full text-center mb-3 md:mb-6 px-6">
             <h2 className="font-headline-md text-2xl sm:text-3xl md:text-4xl font-extrabold text-primary tracking-tight max-w-4xl mx-auto">
               Leading White & Private labelling Manufacturer
             </h2>
@@ -455,7 +455,7 @@ export default function Home() {
         {/* Manufacturing Capabilities Section - Editorial Two Column Layout */}
         <section className="w-full px-6 md:px-12 lg:px-16 mb-12 md:mb-20 relative z-10">
           <MotionReveal delay={0.1}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3 md:mb-10">
               <h2 className="font-headline-md text-headline-md text-primary">Manufacturing Capabilities</h2>
               <div className="hidden sm:block h-px flex-grow mx-4 md:mx-6 bg-gradient-to-r from-transparent via-outline-variant to-transparent opacity-50"></div>
               <div className="flex items-center gap-6 shrink-0">

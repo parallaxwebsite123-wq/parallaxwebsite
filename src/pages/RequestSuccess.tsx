@@ -20,7 +20,7 @@ export default function RequestSuccess() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/profile" className="iridescent-btn text-white font-label-sm text-label-sm uppercase tracking-widest py-4 px-8 rounded-xl shadow-md">
+            <Link to="/marketplace" className="iridescent-btn text-white font-label-sm text-label-sm uppercase tracking-widest py-4 px-8 rounded-xl shadow-md">
               Track Request
             </Link>
             <Link to="/marketplace" className="bg-white/40 backdrop-blur-md border border-white/50 text-primary font-label-sm text-label-sm uppercase tracking-widest py-4 px-8 rounded-xl shadow-sm hover:bg-white/60 transition-colors">

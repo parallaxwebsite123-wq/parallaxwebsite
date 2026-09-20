@@ -16,7 +16,7 @@ export default function TrackOrder() {
               className="h-[46px] md:h-[68px] w-auto object-contain" 
             />
           </Link>
-          <Link to="/profile" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2">
+          <Link to="/" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">close</span> Close Tracker
           </Link>
         </div>

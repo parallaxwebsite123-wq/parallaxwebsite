@@ -8,7 +8,6 @@ import Home from './pages/Home';
 import Marketplace from './pages/Marketplace';
 import About from './pages/About';
 import RequestSample from './pages/RequestSample';
-import Profile from './pages/Profile';
 import TrackOrder from './pages/TrackOrder';
 import ReturnPolicy from './pages/ReturnPolicy';
 import RequestSuccess from './pages/RequestSuccess';
@@ -33,7 +32,6 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/checkout" element={<Navigate to="/request-sample" replace />} />
         <Route path="/request-sample" element={<RequestSample />} />
-        <Route path="/profile" element={<Profile />} />
         <Route path="/track-order" element={<TrackOrder />} />
         <Route path="/return-policy" element={<ReturnPolicy />} />
         <Route path="/order-success" element={<Navigate to="/request-success" replace />} />

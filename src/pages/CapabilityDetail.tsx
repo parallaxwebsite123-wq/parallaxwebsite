@@ -193,7 +193,7 @@ export default function CapabilityDetail() {
                     to="/marketplace?view=manufacture" 
                     className="px-6 py-3.5 rounded-xl border border-outline-variant/60 text-on-surface-variant font-label-sm text-xs uppercase tracking-widest hover:bg-white/60 transition-colors bg-white/30"
                   >
-                    Explore All Capabilities
+                    Explore other Perfumes
                   </Link>
                 </div>
               </div>

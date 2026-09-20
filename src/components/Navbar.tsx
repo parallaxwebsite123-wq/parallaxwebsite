@@ -444,10 +444,6 @@ export default function Navbar() {
 
         {/* Right Side Controls */}
         <div className="flex items-center gap-3">
-          <Link aria-label="person" className="text-primary hover:bg-white/20 transition-all duration-300 p-2 rounded-full active:scale-95" to="/profile">
-            <span className="material-symbols-outlined">person</span>
-          </Link>
-
           {/* Mobile Hamburger Toggle Button */}
           <button 
             onClick={() => setMobileMenuOpen(true)} 
@@ -517,14 +513,6 @@ export default function Navbar() {
                 )}
 
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Link
-                    to="/profile"
-                    onClick={handleLinkClick}
-                    className="text-[#0e3237] p-2 rounded-full hover:bg-[#0e3237]/5 active:scale-95 transition-all"
-                    aria-label="Account Profile"
-                  >
-                    <span className="material-symbols-outlined text-xl">person</span>
-                  </Link>
                   <button
                     type="button"
                     onClick={handleCloseDrawer}

@@ -11,12 +11,45 @@ interface ManufactureCardProps {
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&q=80&w=800";
 
+const MANUFACTURE_IMAGE_CONFIG: Record<string, { scale: number; position?: string }> = {
+  // Attars assets (Attars 1 & 2)
+  '/images/marketplace/attars-1.png': { scale: 1.38, position: 'center' },
+  '/images/marketplace/attars-2.png': { scale: 1.38, position: 'center' },
+
+  // Eau de Toilette asset (EDT 3)
+  '/images/marketplace/edt-3.png': { scale: 1.40, position: 'center' },
+
+  // Scented and Fragrance Candles asset (Candles 6)
+  '/images/marketplace/scented-fragrance-candles-6.png': { scale: 1.38, position: 'center' },
+
+  // Incense Products asset (Incense 7)
+  '/images/marketplace/incense-products-7.png': { scale: 1.38, position: 'center' },
+
+  // Dhoop / Incense Cones asset (Dhoop 8)
+  '/images/marketplace/dhoop-incense-cones-8.png': { scale: 1.38, position: 'center' },
+};
+
 export default function ManufactureCard({ cat, idx }: ManufactureCardProps) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Primary image asset to preload for loading detection
   const primaryImageSrc = (cat.images && cat.images.length > 0) ? cat.images[0] : cat.image;
+
+  const getImageStyle = (src: string): React.CSSProperties => {
+    const config = MANUFACTURE_IMAGE_CONFIG[src] || { scale: 1.0, position: 'center' };
+    const baseScale = config.scale;
+    const finalScale = isHovered ? baseScale * 1.05 : baseScale;
+
+    return {
+      objectFit: 'cover',
+      objectPosition: config.position || 'center',
+      transform: `scale(${finalScale})`,
+      transformOrigin: 'center center',
+      transition: 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1), opacity 700ms ease',
+    };
+  };
 
   useEffect(() => {
     let active = true;
@@ -69,20 +102,23 @@ export default function ManufactureCard({ cat, idx }: ManufactureCardProps) {
       {/* 2. Real Content Card (Fades in smoothly when image becomes ready) */}
       <Link
         to={`/capabilities/${cat.slug}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         className={`glass-panel glass-card-hover rounded-xl sm:rounded-2xl overflow-hidden group flex flex-col border border-white/50 hover:border-white shadow-sm transition-all duration-300 w-full h-full ${
           isImageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.99] pointer-events-none'
         }`}
       >
         {/* Image Frame */}
-        <div className="aspect-[4/3] w-full overflow-hidden bg-black/10 relative">
+        <div className="aspect-[4/3] w-full overflow-hidden bg-black/10 relative rounded-t-xl sm:rounded-t-2xl">
           {hasCarousel ? (
             cat.images!.map((img, i) => (
               <img
                 key={img}
                 src={img}
                 alt={cat.name}
-                className={`absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 block ${
-                  i === currentIdx ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
+                style={getImageStyle(img)}
+                className={`absolute inset-0 w-full h-full object-cover max-w-none block ${
+                  i === currentIdx ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
                 onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
               />
@@ -91,7 +127,8 @@ export default function ManufactureCard({ cat, idx }: ManufactureCardProps) {
             <img
               src={cat.image}
               alt={cat.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 block"
+              style={getImageStyle(cat.image)}
+              className="absolute inset-0 w-full h-full object-cover max-w-none block"
               onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
             />
           )}
