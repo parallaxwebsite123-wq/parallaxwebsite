@@ -395,6 +395,19 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   }
 };
 
+function getMaxBannerTimestamp(banners?: BannerItem[], fallbackImage?: { updatedAt?: number }): number {
+  if (!banners || banners.length === 0) {
+    return fallbackImage?.updatedAt || 0;
+  }
+  let maxTime = fallbackImage?.updatedAt || 0;
+  for (const b of banners) {
+    if (b.updatedAt && b.updatedAt > maxTime) maxTime = b.updatedAt;
+    if (b.desktop?.updatedAt && b.desktop.updatedAt > maxTime) maxTime = b.desktop.updatedAt;
+    if (b.mobile?.updatedAt && b.mobile.updatedAt > maxTime) maxTime = b.mobile.updatedAt;
+  }
+  return maxTime;
+}
+
 function normalizeBanners(
   rawBanners: any[] | undefined,
   fallbackDesktop: ImageMeta,
@@ -404,8 +417,17 @@ function normalizeBanners(
   if (Array.isArray(rawBanners) && rawBanners.length > 0) {
     return rawBanners
       .map((item, idx) => {
-        const desktopObj = item.desktop && typeof item.desktop === 'object' && item.desktop.url && String(item.desktop.url).trim() ? item.desktop : (item.image && typeof item.image === 'object' && item.image.url && String(item.image.url).trim() ? item.image : fallbackDesktop);
-        const mobileObj = item.mobile && typeof item.mobile === 'object' && item.mobile.url && String(item.mobile.url).trim() ? item.mobile : (fallbackMobile && fallbackMobile.url && String(fallbackMobile.url).trim() ? fallbackMobile : desktopObj);
+        const hasCustomDesktop = item.desktop && typeof item.desktop === 'object' && item.desktop.url && String(item.desktop.url).trim().length > 0;
+        const hasCustomMobile = item.mobile && typeof item.mobile === 'object' && item.mobile.url && String(item.mobile.url).trim().length > 0;
+        const hasCustomImage = item.image && typeof item.image === 'object' && item.image.url && String(item.image.url).trim().length > 0;
+
+        const desktopObj = hasCustomDesktop
+          ? item.desktop
+          : (hasCustomImage ? item.image : (idx === 0 ? fallbackDesktop : { url: '', alt: `${prefix} ${idx + 1}` }));
+
+        const mobileObj = hasCustomMobile
+          ? item.mobile
+          : (hasCustomDesktop ? item.desktop : (idx === 0 ? (fallbackMobile || fallbackDesktop) : desktopObj));
 
         return {
           id: item.id || `${prefix}-${idx + 1}-${Date.now()}`,
@@ -548,8 +570,8 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
       banners: marketplaceBanners
     },
     products: normalizeProducts(raw?.products),
-    capabilities: raw?.capabilities || DEFAULT_HOMEPAGE_CONTENT.capabilities,
-    capabilityBanners: normalizedCapBanners
+    capabilityBanners: normalizedCapBanners,
+    capabilities: raw?.capabilities || null
   };
 }
 
@@ -591,12 +613,28 @@ async function compressImageFile(file: File, maxWidth = 1920, maxHeight = 1080, 
   });
 }
 
-export async function uploadAdminImage(file: File, folderPath: string = 'homepage'): Promise<{ url: string; filename: string }> {
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error('Image upload failed: File size exceeds 10MB limit.');
+export async function uploadAdminImage(
+  file: File,
+  folderPath: string = 'website-assets'
+): Promise<{ url: string; filename: string }> {
+  if (!file) {
+    throw new Error('Image upload failed: No file selected.');
   }
 
-  if (file.type && !file.type.startsWith('image/') && !file.name.match(/\.(jpg|jpeg|png|webp|avif|heic|svg)$/i)) {
+  const validTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/svg+xml',
+    'image/avif',
+    'image/heic',
+    'image/heif',
+    'image/bmp',
+    'image/tiff'
+  ];
+
+  if (file.type && !validTypes.includes(file.type.toLowerCase()) && !file.name.match(/\.(jpg|jpeg|png|webp|gif|svg|avif|heic|heif|bmp|tiff)$/i)) {
     throw new Error('Image upload failed: Unsupported file format. Please select a valid image file (JPG, PNG, WebP, etc.).');
   }
 
@@ -742,8 +780,8 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
             const localList = localNormalized.capabilityBanners[slug];
             const remoteList = remoteNormalized.capabilityBanners?.[slug];
             if (localList && localList.length > 0) {
-              const localUpdated = localList[0]?.updatedAt || 0;
-              const remoteUpdated = remoteList?.[0]?.updatedAt || 0;
+              const localUpdated = getMaxBannerTimestamp(localList);
+              const remoteUpdated = getMaxBannerTimestamp(remoteList);
               if (!remoteList || localUpdated >= remoteUpdated) {
                 mergedCapBanners[slug] = localList;
               }
@@ -751,12 +789,41 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
           }
         }
 
+        const localHeroTime = getMaxBannerTimestamp(localNormalized?.hero?.banners, localNormalized?.hero?.image);
+        const remoteHeroTime = getMaxBannerTimestamp(remoteNormalized?.hero?.banners, remoteNormalized?.hero?.image);
+        const localHeroLen = localNormalized?.hero?.banners?.length || 0;
+        const remoteHeroLen = remoteNormalized?.hero?.banners?.length || 0;
+        const useLocalHero = Boolean(
+          localHeroLen > 0 &&
+          (localHeroTime >= remoteHeroTime || localHeroLen > remoteHeroLen || !remoteHeroLen)
+        );
+
+        const localAboutTime = getMaxBannerTimestamp(localNormalized?.aboutBanner?.banners, localNormalized?.aboutBanner?.image);
+        const remoteAboutTime = getMaxBannerTimestamp(remoteNormalized?.aboutBanner?.banners, remoteNormalized?.aboutBanner?.image);
+        const localAboutLen = localNormalized?.aboutBanner?.banners?.length || 0;
+        const remoteAboutLen = remoteNormalized?.aboutBanner?.banners?.length || 0;
+        const useLocalAbout = Boolean(
+          localAboutLen > 0 &&
+          (localAboutTime >= remoteAboutTime || localAboutLen > remoteAboutLen || !remoteAboutLen)
+        );
+
+        const localMarketplaceTime = getMaxBannerTimestamp(localNormalized?.marketplaceBanner?.banners, localNormalized?.marketplaceBanner?.image);
+        const remoteMarketplaceTime = getMaxBannerTimestamp(remoteNormalized?.marketplaceBanner?.banners, remoteNormalized?.marketplaceBanner?.image);
+        const localMarketplaceLen = localNormalized?.marketplaceBanner?.banners?.length || 0;
+        const remoteMarketplaceLen = remoteNormalized?.marketplaceBanner?.banners?.length || 0;
+        const useLocalMarketplace = Boolean(
+          localMarketplaceLen > 0 &&
+          (localMarketplaceTime >= remoteMarketplaceTime || localMarketplaceLen > remoteMarketplaceLen || !remoteMarketplaceLen)
+        );
+
         const merged: HomepageContent = {
           ...remoteNormalized,
-          capabilityBanners: mergedCapBanners,
-          marketplaceBanner: localNormalized?.marketplaceBanner?.banners?.length
-            ? localNormalized.marketplaceBanner
-            : remoteNormalized.marketplaceBanner
+          hero: useLocalHero ? localNormalized!.hero : remoteNormalized.hero,
+          mobileHero: useLocalHero ? (localNormalized!.mobileHero || remoteNormalized.mobileHero) : remoteNormalized.mobileHero,
+          aboutBanner: useLocalAbout ? localNormalized!.aboutBanner : remoteNormalized.aboutBanner,
+          aboutMobileBanner: useLocalAbout ? (localNormalized!.aboutMobileBanner || remoteNormalized.aboutMobileBanner) : remoteNormalized.aboutMobileBanner,
+          marketplaceBanner: useLocalMarketplace ? localNormalized!.marketplaceBanner : remoteNormalized.marketplaceBanner,
+          capabilityBanners: mergedCapBanners
         };
         try {
           localStorage.setItem('parallax_homepage_content', JSON.stringify(merged));

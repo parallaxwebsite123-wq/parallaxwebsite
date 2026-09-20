@@ -12,7 +12,7 @@ export default function MarketplaceBanner({ title, subtitle, imageSrc, mobileIma
   const mobileBanner = (mobileImageSrc && mobileImageSrc.trim()) ? mobileImageSrc.trim() : desktopBanner;
 
   return (
-    <section className="w-full relative overflow-hidden bg-surface-bright aspect-[535/378] sm:aspect-[1920/800] sm:max-h-[600px] lg:max-h-[680px] flex items-center">
+    <section className="w-full relative overflow-hidden bg-surface-bright aspect-[535/378] sm:aspect-[1920/800] sm:max-h-[800px] lg:max-h-[800px] flex items-center">
       {/* Desktop Background Banner Image */}
       <img
         src={desktopBanner}

@@ -679,14 +679,33 @@ export default function AdminDashboard() {
       const uploaded = await uploadAdminImage(heroNewFile);
       
       // 2. Construct updated content record
+      const existingBanners = (cmsContent?.hero?.banners && cmsContent.hero.banners.length > 0)
+        ? cmsContent.hero.banners
+        : [{
+            id: 'hero-banner-1',
+            order: 1,
+            desktop: { url: uploaded.url, alt: 'Parallax fragrance manufacturing banner', updatedAt: Date.now() },
+            mobile: { url: cmsContent?.mobileHero?.image?.url || uploaded.url, alt: 'Parallax mobile banner', updatedAt: Date.now() },
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          }];
+
+      const updatedHeroBanners = existingBanners.map((b, i) => i === 0 ? {
+        ...b,
+        desktop: { url: uploaded.url, alt: b.desktop?.alt || 'Parallax fragrance manufacturing banner', updatedAt: Date.now() },
+        updatedAt: Date.now()
+      } : b);
+
       const updatedContent: HomepageContent = {
         ...cmsContent,
         hero: {
+          ...cmsContent?.hero,
           image: {
             url: uploaded.url,
             alt: 'Parallax fragrance manufacturing banner',
             updatedAt: Date.now()
-          }
+          },
+          banners: updatedHeroBanners
         }
       };
 
@@ -744,6 +763,23 @@ export default function AdminDashboard() {
     try {
       const uploaded = await uploadAdminImage(mobileHeroNewFile);
       
+      const existingBanners = (cmsContent?.hero?.banners && cmsContent.hero.banners.length > 0)
+        ? cmsContent.hero.banners
+        : [{
+            id: 'hero-banner-1',
+            order: 1,
+            desktop: { url: cmsContent?.hero?.image?.url || uploaded.url, alt: 'Parallax desktop banner', updatedAt: Date.now() },
+            mobile: { url: uploaded.url, alt: 'Parallax mobile banner', updatedAt: Date.now() },
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          }];
+
+      const updatedHeroBanners = existingBanners.map((b, i) => i === 0 ? {
+        ...b,
+        mobile: { url: uploaded.url, alt: b.mobile?.alt || 'Parallax mobile banner', updatedAt: Date.now() },
+        updatedAt: Date.now()
+      } : b);
+
       const updatedContent: HomepageContent = {
         ...cmsContent,
         mobileHero: {
@@ -752,6 +788,11 @@ export default function AdminDashboard() {
             alt: 'Parallax fragrance manufacturing mobile banner (535x378)',
             updatedAt: Date.now()
           }
+        },
+        hero: {
+          ...cmsContent?.hero,
+          image: cmsContent?.hero?.image || { url: uploaded.url, alt: 'Parallax desktop banner', updatedAt: Date.now() },
+          banners: updatedHeroBanners
         }
       };
 

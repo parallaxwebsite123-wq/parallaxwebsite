@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import MotionReveal from '../components/MotionReveal';
 import Footer from '../components/Footer';
@@ -6,6 +6,8 @@ import Navbar from '../components/Navbar';
 import InquiryModal from '../components/InquiryModal';
 import { getPublishedHomepageContent, HomepageContent } from '../services/homepageContent';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { useAutoplayCarousel } from '../hooks/useAutoplayCarousel';
+import CarouselProgressBar from '../components/CarouselProgressBar';
 
 function CapacityCounter() {
   const [count, setCount] = useState(0);
@@ -195,7 +197,7 @@ export default function Home() {
     ? content.hero.banners
     : [
         {
-          id: 'hero-default',
+          id: 'hero-default-1',
           order: 1,
           desktop: {
             url: content?.hero?.image?.url || '/images/hero/hero-banner.png',
@@ -205,24 +207,25 @@ export default function Home() {
             url: content?.mobileHero?.image?.url || content?.hero?.image?.url || '/images/hero/mobile-hero-banner.png',
             alt: content?.mobileHero?.image?.alt || 'Our Preciously Curated Gift Collection - Parallax Perfumery (Mobile)'
           }
+        },
+        {
+          id: 'hero-default-2',
+          order: 2,
+          desktop: {
+            url: '/images/product-4.png',
+            alt: 'White-Label Fragrance Manufacturing - Parallax Perfumery'
+          },
+          mobile: {
+            url: '/images/product-4.png',
+            alt: 'White-Label Fragrance Manufacturing - Parallax Perfumery (Mobile)'
+          }
         }
       ];
 
-  const [currentHeroIdx, setCurrentHeroIdx] = useState(0);
-
-  useEffect(() => {
-    if (heroBanners.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentHeroIdx((prev) => (prev + 1) % heroBanners.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [heroBanners.length]);
-
-  const activeHeroBanner = heroBanners[currentHeroIdx] || heroBanners[0];
-  const heroDesktopSrc = activeHeroBanner.desktop.url || '/images/hero/hero-banner.png';
-  const heroDesktopAlt = activeHeroBanner.desktop.alt || 'Parallax Perfumery Desktop Banner';
-  const heroMobileSrc = activeHeroBanner.mobile.url || heroDesktopSrc;
-  const heroMobileAlt = activeHeroBanner.mobile.alt || heroDesktopAlt;
+  const heroCarousel = useAutoplayCarousel({
+    itemCount: heroBanners.length,
+    duration: 3500,
+  });
 
   const productList = (content?.products && content.products.length > 0) 
     ? content.products 
@@ -271,25 +274,57 @@ export default function Home() {
         }
       ];
 
-  const [currentCapIdx, setCurrentCapIdx] = useState(0);
+  const capCarousel = useAutoplayCarousel({
+    itemCount: capabilityBanners.length,
+    duration: 3500,
+  });
 
-  useEffect(() => {
-    if (capabilityBanners.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentCapIdx((prev) => (prev + 1) % capabilityBanners.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [capabilityBanners.length]);
+  // Touch gesture refs for mobile swipe
+  const heroTouchStartX = useRef<number | null>(null);
+  const heroTouchStartY = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (openCapability >= 0 && openCapability < capabilityBanners.length) {
-      setCurrentCapIdx(openCapability % capabilityBanners.length);
+  const handleHeroTouchStart = (e: React.TouchEvent) => {
+    heroTouchStartX.current = e.touches[0].clientX;
+    heroTouchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleHeroTouchEnd = (e: React.TouchEvent) => {
+    if (heroTouchStartX.current === null || heroTouchStartY.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - heroTouchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - heroTouchStartY.current;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
+      if (deltaX < 0) heroCarousel.nextSlide();
+      else heroCarousel.prevSlide();
     }
-  }, [openCapability, capabilityBanners.length]);
+    heroTouchStartX.current = null;
+    heroTouchStartY.current = null;
+  };
 
-  const activeCapBanner = capabilityBanners[currentCapIdx] || capabilityBanners[0];
-  const activeCapSrc = activeCapBanner.desktop.url || content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA";
-  const activeCapAlt = activeCapBanner.desktop.alt || "Manufacturing Capabilities";
+  const capTouchStartX = useRef<number | null>(null);
+  const capTouchStartY = useRef<number | null>(null);
+
+  const handleCapTouchStart = (e: React.TouchEvent) => {
+    capTouchStartX.current = e.touches[0].clientX;
+    capTouchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleCapTouchEnd = (e: React.TouchEvent) => {
+    if (capTouchStartX.current === null || capTouchStartY.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - capTouchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - capTouchStartY.current;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
+      if (deltaX < 0) capCarousel.nextSlide();
+      else capCarousel.prevSlide();
+    }
+    capTouchStartX.current = null;
+    capTouchStartY.current = null;
+  };
+
+  // Sync accordion click with capability carousel
+  const handleCapabilitySelect = (idx: number) => {
+    setOpenCapability(idx);
+    capCarousel.goToSlide(idx);
+  };
 
   return (
     <div className="text-on-surface font-body-md text-body-md antialiased relative min-h-screen flex flex-col">
@@ -305,64 +340,88 @@ export default function Home() {
 
       <main className="flex-grow pt-28 md:pt-32 pb-24 relative">
         {/* Hero Section */}
-        <section className="w-full mb-16 md:mb-24 relative z-10 overflow-hidden group">
+        <section 
+          className="w-full mb-4 md:mb-8 relative z-10 overflow-hidden group"
+          onTouchStart={handleHeroTouchStart}
+          onTouchEnd={handleHeroTouchEnd}
+        >
           <h1 className="sr-only">Parallax OEM / ODM Manufacturing - Build Your Fragrance Brand</h1>
           
-          {/* Desktop Banner (Hidden on Mobile) */}
-          <div className="hidden md:block w-full aspect-[1920/650] max-h-[650px] overflow-hidden relative">
-            <img 
-              key={`desktop-${activeHeroBanner.id}-${heroDesktopSrc}`}
-              src={heroDesktopSrc} 
-              alt={heroDesktopAlt}
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (target.src !== '/images/hero/hero-banner.png') {
-                  target.src = '/images/hero/hero-banner.png';
-                }
-              }}
-              className="w-full h-full object-cover object-center block transition-opacity duration-700 animate-fade-in"
-            />
-          </div>
-
-          {/* Mobile Banner (535x378 Frame - Visible on Mobile) */}
-          <div className="block md:hidden w-full aspect-[535/378] overflow-hidden bg-black/5 relative">
-            <img 
-              key={`mobile-${activeHeroBanner.id}-${heroMobileSrc}`}
-              src={heroMobileSrc} 
-              alt={heroMobileAlt}
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (target.src !== '/images/hero/mobile-hero-banner.png') {
-                  target.src = '/images/hero/mobile-hero-banner.png';
-                }
-              }}
-              className="w-full h-full object-cover object-center block transition-opacity duration-700 animate-fade-in"
-            />
-          </div>
-
-          {/* Dots Indicator for Multiple Hero Banners */}
-          {heroBanners.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 bg-black/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 shadow-lg">
-              {heroBanners.map((banner, idx) => (
-                <button
-                  key={banner.id}
-                  onClick={() => setCurrentHeroIdx(idx)}
-                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                    currentHeroIdx === idx
-                      ? 'bg-white w-6'
-                      : 'bg-white/50 hover:bg-white/80'
-                  }`}
-                  aria-label={`Go to slide ${idx + 1}`}
-                />
-              ))}
+          <div className="w-full relative overflow-hidden bg-surface-bright">
+            {/* Desktop Banner Track (Hidden on Mobile) */}
+            <div className="hidden md:block w-full aspect-[1920/800] max-h-[800px] overflow-hidden relative">
+              <div 
+                className="flex w-full h-full transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                style={{ transform: `translateX(-${heroCarousel.currentIndex * 100}%)` }}
+              >
+                {heroBanners.map((banner, idx) => {
+                  const desktopSrc = banner.desktop?.url || '/images/hero/hero-banner.png';
+                  const desktopAlt = banner.desktop?.alt || 'Parallax Perfumery Desktop Banner';
+                  return (
+                    <div key={banner.id || `hero-desk-${idx}`} className="w-full h-full shrink-0 relative">
+                      <img 
+                        src={desktopSrc} 
+                        alt={desktopAlt}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (target.src !== '/images/hero/hero-banner.png') {
+                            target.src = '/images/hero/hero-banner.png';
+                          }
+                        }}
+                        className="w-full h-full object-cover object-center block"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          )}
+
+            {/* Mobile Banner Track (Visible on Mobile) */}
+            <div className="block md:hidden w-full aspect-[535/378] overflow-hidden bg-black/5 relative">
+              <div 
+                className="flex w-full h-full transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                style={{ transform: `translateX(-${heroCarousel.currentIndex * 100}%)` }}
+              >
+                {heroBanners.map((banner, idx) => {
+                  const mobileSrc = banner.mobile?.url || banner.desktop?.url || '/images/hero/mobile-hero-banner.png';
+                  const mobileAlt = banner.mobile?.alt || banner.desktop?.alt || 'Parallax Perfumery Mobile Banner';
+                  return (
+                    <div key={banner.id || `hero-mob-${idx}`} className="w-full h-full shrink-0 relative">
+                      <img 
+                        src={mobileSrc} 
+                        alt={mobileAlt}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (target.src !== '/images/hero/mobile-hero-banner.png') {
+                            target.src = '/images/hero/mobile-hero-banner.png';
+                          }
+                        }}
+                        className="w-full h-full object-cover object-center block"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sleek Ultra-Thin Progress Indicator Line */}
+            <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-30 w-36 sm:w-56 flex items-center justify-center pointer-events-auto">
+              <CarouselProgressBar
+                itemCount={heroBanners.length}
+                currentIndex={heroCarousel.currentIndex}
+                progress={heroCarousel.progress}
+                onSelect={(idx) => heroCarousel.goToSlide(idx)}
+                theme="dark"
+                className="w-full"
+              />
+            </div>
+          </div>
         </section>
 
         {/* Continuous Infinite Horizontal Product Marquee */}
-        <section className="w-full mb-16 md:mb-24 relative z-10 overflow-hidden py-2">
+        <section className="w-full mb-6 md:mb-12 relative z-10 overflow-hidden py-1">
           {/* Centered Heading above moving product row */}
-          <div className="w-full text-center mb-8 md:mb-10 px-6">
+          <div className="w-full text-center mb-4 md:mb-6 px-6">
             <h2 className="font-headline-md text-2xl sm:text-3xl md:text-4xl font-extrabold text-primary tracking-tight max-w-4xl mx-auto">
               Leading White & Private labelling Manufacturer
             </h2>
@@ -394,9 +453,9 @@ export default function Home() {
         </section>
 
         {/* Manufacturing Capabilities Section - Editorial Two Column Layout */}
-        <section className="w-full px-6 md:px-12 lg:px-16 mb-24 md:mb-32 relative z-10">
+        <section className="w-full px-6 md:px-12 lg:px-16 mb-12 md:mb-20 relative z-10">
           <MotionReveal delay={0.1}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 md:mb-12">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12">
               <h2 className="font-headline-md text-headline-md text-primary">Manufacturing Capabilities</h2>
               <div className="hidden sm:block h-px flex-grow mx-4 md:mx-6 bg-gradient-to-r from-transparent via-outline-variant to-transparent opacity-50"></div>
               <div className="flex items-center gap-6 shrink-0">
@@ -409,45 +468,8 @@ export default function Home() {
           </MotionReveal>
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Left Column — Capabilities Carousel Banner (~58% width on desktop, edge-to-edge hero banner on mobile) */}
-            <MotionReveal delay={0.2} className="lg:col-span-7 h-full mb-8 lg:mb-0">
-              <div 
-                className="-mx-6 lg:mx-0 w-[calc(100%+3rem)] lg:w-full aspect-[535/378] lg:aspect-auto lg:min-h-[580px] h-full rounded-none lg:rounded-3xl overflow-hidden relative block bg-surface-bright border-none lg:border lg:border-black/5 shadow-none lg:shadow-md"
-              >
-                {/* Horizontal Slide Track */}
-                <div 
-                  className="flex w-full h-full transition-transform duration-700 ease-in-out"
-                  style={{ transform: `translateX(-${currentCapIdx * 100}%)` }}
-                >
-                  {capabilityBanners.map((banner, idx) => {
-                    const desktopUrl = banner.desktop?.url || content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA";
-                    const mobileUrl = banner.mobile?.url || desktopUrl;
-                    const capAlt = banner.desktop?.alt || "Manufacturing Capabilities";
-                    return (
-                      <div key={banner.id || idx} className="w-full h-full shrink-0 relative">
-                        <picture className="w-full h-full block">
-                          <source media="(max-width: 767px)" srcSet={mobileUrl} />
-                          <img 
-                            src={desktopUrl} 
-                            alt={capAlt} 
-                            className="w-full h-full object-cover object-center block" 
-                          />
-                        </picture>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent pointer-events-none z-10"></div>
-
-                <div className="absolute bottom-0 left-0 p-6 md:p-8 lg:p-10 text-white z-20 w-full pointer-events-none">
-                  <CapacityCounter />
-                </div>
-              </div>
-            </MotionReveal>
-
-            {/* Right Column — 6 Accordion Capabilities List (~42% width) */}
-            <MotionReveal delay={0.3} className="lg:col-span-5 flex flex-col justify-center">
+            {/* Right Column (Rendered FIRST on Mobile) — 6 Accordion Capabilities List & Mobile View Marketplace Button */}
+            <MotionReveal delay={0.1} className="order-1 lg:order-2 lg:col-span-5 flex flex-col justify-center">
               <div className="divide-y divide-black/10 border-t border-b border-black/10">
                 {CAPABILITIES.map((item, idx) => {
                   const isOpen = openCapability === idx;
@@ -458,7 +480,7 @@ export default function Home() {
                         id={`capability-header-${idx}`}
                         aria-expanded={isOpen}
                         aria-controls={`capability-content-${idx}`}
-                        onClick={() => setOpenCapability(isOpen ? -1 : idx)}
+                        onClick={() => handleCapabilitySelect(isOpen ? -1 : idx)}
                         className="w-full flex items-center justify-between text-left group focus:outline-none focus:ring-1 focus:ring-secondary/50 rounded-lg p-1 cursor-pointer"
                       >
                         <h3 className={`font-headline-md text-base md:text-lg lg:text-xl tracking-tight transition-colors duration-300 ${isOpen ? 'text-primary font-semibold' : 'text-on-surface hover:text-primary font-medium'}`}>
@@ -500,7 +522,7 @@ export default function Home() {
                 })}
               </div>
 
-              {/* Mobile View Marketplace Button (Positioned below "End-to-end product development" snippet) */}
+              {/* Mobile View Marketplace Button */}
               <div className="mt-8 flex justify-center lg:hidden">
                 <Link 
                   to="/marketplace" 
@@ -510,6 +532,58 @@ export default function Home() {
                   <span className="material-symbols-outlined text-sm">arrow_forward</span>
                 </Link>
               </div>
+            </MotionReveal>
+
+            {/* Left Column (Rendered SECOND on Mobile, below View Marketplace button) — Capabilities Carousel Banner */}
+            <MotionReveal delay={0.2} className="order-2 lg:order-1 lg:col-span-7 h-full mb-4 lg:mb-0">
+              <div 
+                className="-mx-6 lg:mx-0 w-[calc(100%+3rem)] lg:w-full aspect-[535/378] lg:aspect-auto lg:min-h-[580px] h-full rounded-none lg:rounded-3xl overflow-hidden relative block bg-surface-bright border-none lg:border lg:border-black/5 shadow-none lg:shadow-md group cursor-pointer"
+                onTouchStart={handleCapTouchStart}
+                onTouchEnd={handleCapTouchEnd}
+              >
+                {/* Horizontal Slide Track */}
+                <div 
+                  className="flex w-full h-full transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                  style={{ transform: `translateX(-${capCarousel.currentIndex * 100}%)` }}
+                >
+                  {capabilityBanners.map((banner, idx) => {
+                    const desktopUrl = banner.desktop?.url || content?.capabilities?.mainFineFragrance?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuA1EipLAYOO-BThxksFM92AqMAnsoEw0VNhaHTr3BAkDssz2UaHaDumTq_l7sN-wk02S_qbBOTKwbCU3WmaKh14z-dsTsaJ9VZ62TNML3kPqDHQ9dvM35pCWPf54RfTqzjtWr7lj-_AIaAmIE4K1t-3m2R7D3vm0ei3hr6XABktI8QrbzKk3FDDmXJmAKX1ZuvoS4doPNfnFqJ6V_HY9CC-AS8XdsnzH2vmKB0vPHiUXHZ75zO-B4iscA";
+                    const mobileUrl = banner.mobile?.url || desktopUrl;
+                    const capAlt = banner.desktop?.alt || "Manufacturing Capabilities";
+                    return (
+                      <div key={banner.id || idx} className="w-full h-full shrink-0 relative">
+                        <picture className="w-full h-full block">
+                          <source media="(max-width: 767px)" srcSet={mobileUrl} />
+                          <img 
+                            src={desktopUrl} 
+                            alt={capAlt} 
+                            className="w-full h-full object-cover object-center block" 
+                          />
+                        </picture>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent pointer-events-none z-10"></div>
+
+                <div className="absolute bottom-0 left-0 p-6 md:p-8 lg:p-10 text-white z-20 w-full pointer-events-none">
+                  <CapacityCounter />
+                </div>
+              </div>
+
+              {/* Progress Bar for Capabilities Carousel */}
+              {capabilityBanners.length > 1 && (
+                <div className="mt-4 flex justify-center">
+                  <CarouselProgressBar
+                    itemCount={capabilityBanners.length}
+                    currentIndex={capCarousel.currentIndex}
+                    progress={capCarousel.progress}
+                    onSelect={handleCapabilitySelect}
+                    theme="light"
+                  />
+                </div>
+              )}
             </MotionReveal>
           </div>
         </section>
