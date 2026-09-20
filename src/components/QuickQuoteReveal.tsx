@@ -4,14 +4,30 @@ import { OEM_SERVICE_OPTIONS, submitInquiry } from '../services/inquiriesService
 
 type AnimStatus = 'closed' | 'opening' | 'open' | 'closing';
 
-export default function QuickQuoteReveal() {
+export interface QuickQuoteRevealProps {
+  buttonLabel?: string;
+  buttonBgColor?: string;
+  buttonTextColor?: string;
+  defaultService?: string;
+  buttonWidth?: string;
+  align?: 'center' | 'left' | 'right';
+}
+
+export default function QuickQuoteReveal({
+  buttonLabel = 'Get a quick quote',
+  buttonBgColor = '#d4af37',
+  buttonTextColor = '#000000',
+  defaultService = 'End-to-end product development',
+  buttonWidth,
+  align = 'center'
+}: QuickQuoteRevealProps) {
   const [status, setStatus] = useState<AnimStatus>('closed');
   
   // Form fields
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [service, setService] = useState('End-to-end product development');
+  const [service, setService] = useState(defaultService);
 
   // Form states
   const [errors, setErrors] = useState<{ name?: string; phone?: string; email?: string; service?: string }>({});
@@ -135,16 +151,21 @@ export default function QuickQuoteReveal() {
     }
   };
 
+  // Dynamic closed button width calculation based on text length if not explicitly provided
+  const computedClosedWidth = buttonWidth || (buttonLabel.length > 18 ? '250px' : '220px');
+
   return (
-    <div className="w-full flex justify-center items-center py-2 relative min-h-[52px]">
+    <div className={`w-full flex ${
+      align === 'left' ? 'justify-start' : align === 'right' ? 'justify-end' : 'justify-center'
+    } items-center py-2 relative min-h-[52px]`}>
       <motion.div
         initial={false}
         animate={{
-          width: isOpen ? '100%' : '220px',
-          maxWidth: isOpen ? '480px' : '220px',
+          width: isOpen ? '100%' : computedClosedWidth,
+          maxWidth: isOpen ? '480px' : computedClosedWidth,
           height: isOpen ? (status === 'open' ? 'auto' : `${formHeight}px`) : '48px',
           borderRadius: isOpen ? '24px' : '9999px',
-          backgroundColor: '#d4af37',
+          backgroundColor: isOpen ? '#d4af37' : buttonBgColor,
           boxShadow: isOpen 
             ? '0px 24px 60px rgba(0, 0, 0, 0.5)' 
             : '0px 4px 14px rgba(0, 0, 0, 0.15)'
@@ -161,11 +182,12 @@ export default function QuickQuoteReveal() {
             ref={buttonRef}
             type="button"
             onClick={handleOpen}
-            className="w-full h-full px-6 flex items-center justify-center gap-2 text-black font-label-sm text-xs uppercase tracking-widest font-bold focus:outline-none hover:bg-[#e5c158] transition-colors cursor-pointer"
+            style={{ color: buttonTextColor }}
+            className="w-full h-full px-6 flex items-center justify-center gap-2 font-label-sm text-xs uppercase tracking-widest font-bold focus:outline-none transition-all cursor-pointer hover:opacity-90 active:scale-95"
             aria-expanded={false}
-            aria-label="Get a quick quote"
+            aria-label={buttonLabel}
           >
-            <span>Get a quick quote</span>
+            <span>{buttonLabel}</span>
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </button>
         )}

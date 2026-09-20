@@ -85,9 +85,9 @@ export default function Footer() {
             <div className="space-y-2.5 text-sm text-white/80">
               <p className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-base text-secondary-fixed-dim">mail</span>
-                <a href="mailto:contact@parallaxperfumery.com" className="hover:text-white hover:underline underline-offset-4 transition-colors">
-                  contact@parallaxperfumery.com
-                </a>
+                <Link to="/request-sample" className="hover:text-white hover:underline underline-offset-4 transition-colors">
+                  Request Sample / Inquiry
+                </Link>
               </p>
               <p className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-base text-secondary-fixed-dim">precision_manufacturing</span>
@@ -128,13 +128,13 @@ export default function Footer() {
             >
               <span className="material-symbols-outlined text-lg">work</span>
             </a>
-            <a 
-              href="mailto:contact@parallaxperfumery.com" 
-              aria-label="Email Us"
+            <Link 
+              to="/request-sample" 
+              aria-label="Contact Us"
               className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-all active:scale-95"
             >
               <span className="material-symbols-outlined text-lg">mail</span>
-            </a>
+            </Link>
           </div>
 
           {/* CENTER: COPYRIGHT */}

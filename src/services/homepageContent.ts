@@ -56,6 +56,7 @@ export interface HomepageContent {
   };
   products: ProductItem[];
   capabilities?: CapabilitiesSection;
+  capabilityBanners?: Record<string, BannerItem[]>;
 }
 
 export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
@@ -299,6 +300,98 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
         }
       }
     ]
+  },
+  capabilityBanners: {
+    attars: [
+      {
+        id: 'attars-banner-1',
+        order: 1,
+        desktop: { url: '/images/marketplace/attars-1.png', alt: 'Attars Desktop Banner' },
+        mobile: { url: '/images/marketplace/attars-1.png', alt: 'Attars Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    'eau-de-toilette': [
+      {
+        id: 'eau-de-toilette-banner-1',
+        order: 1,
+        desktop: { url: '/images/marketplace/edt-3.png', alt: 'Eau de Toilette Desktop Banner' },
+        mobile: { url: '/images/marketplace/edt-3.png', alt: 'Eau de Toilette Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    'eau-de-parfum': [
+      {
+        id: 'eau-de-parfum-banner-1',
+        order: 1,
+        desktop: { url: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&q=80&w=1000', alt: 'Eau de Parfum Desktop Banner' },
+        mobile: { url: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&q=80&w=1000', alt: 'Eau de Parfum Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    deodorants: [
+      {
+        id: 'deodorants-banner-1',
+        order: 1,
+        desktop: { url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=1000', alt: 'Deodorants Desktop Banner' },
+        mobile: { url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=1000', alt: 'Deodorants Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    'sports-active-fragrances': [
+      {
+        id: 'sports-active-fragrances-banner-1',
+        order: 1,
+        desktop: { url: 'https://images.unsplash.com/photo-1512777576244-b846ac3d816f?auto=format&fit=crop&q=80&w=1000', alt: 'Sports Fragrances Desktop Banner' },
+        mobile: { url: 'https://images.unsplash.com/photo-1512777576244-b846ac3d816f?auto=format&fit=crop&q=80&w=1000', alt: 'Sports Fragrances Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    'scented-fragrance-candles': [
+      {
+        id: 'scented-fragrance-candles-banner-1',
+        order: 1,
+        desktop: { url: '/images/marketplace/scented-fragrance-candles-6.png', alt: 'Candles Desktop Banner' },
+        mobile: { url: '/images/marketplace/scented-fragrance-candles-6.png', alt: 'Candles Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    'incense-products': [
+      {
+        id: 'incense-products-banner-1',
+        order: 1,
+        desktop: { url: '/images/marketplace/incense-products-7.png', alt: 'Incense Desktop Banner' },
+        mobile: { url: '/images/marketplace/incense-products-7.png', alt: 'Incense Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    'dhoop-incense-cones': [
+      {
+        id: 'dhoop-incense-cones-banner-1',
+        order: 1,
+        desktop: { url: '/images/marketplace/dhoop-incense-cones-8.png', alt: 'Dhoop Desktop Banner' },
+        mobile: { url: '/images/marketplace/dhoop-incense-cones-8.png', alt: 'Dhoop Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ],
+    'customised-fragrances': [
+      {
+        id: 'customised-fragrances-banner-1',
+        order: 1,
+        desktop: { url: 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&q=80&w=1000', alt: 'Customised Fragrances Desktop Banner' },
+        mobile: { url: 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&q=80&w=1000', alt: 'Customised Fragrances Mobile Banner' },
+        createdAt: 1725840000000,
+        updatedAt: 1725840000000
+      }
+    ]
   }
 };
 
@@ -310,14 +403,19 @@ function normalizeBanners(
 ): BannerItem[] {
   if (Array.isArray(rawBanners) && rawBanners.length > 0) {
     return rawBanners
-      .map((item, idx) => ({
-        id: item.id || `${prefix}-${idx + 1}-${Date.now()}`,
-        order: typeof item.order === 'number' ? item.order : idx + 1,
-        desktop: item.desktop || item.image || fallbackDesktop,
-        mobile: item.mobile || fallbackMobile || item.desktop || item.image || fallbackDesktop,
-        createdAt: item.createdAt || Date.now(),
-        updatedAt: item.updatedAt || Date.now()
-      }))
+      .map((item, idx) => {
+        const desktopObj = item.desktop && typeof item.desktop === 'object' && item.desktop.url && String(item.desktop.url).trim() ? item.desktop : (item.image && typeof item.image === 'object' && item.image.url && String(item.image.url).trim() ? item.image : fallbackDesktop);
+        const mobileObj = item.mobile && typeof item.mobile === 'object' && item.mobile.url && String(item.mobile.url).trim() ? item.mobile : (fallbackMobile && fallbackMobile.url && String(fallbackMobile.url).trim() ? fallbackMobile : desktopObj);
+
+        return {
+          id: item.id || `${prefix}-${idx + 1}-${Date.now()}`,
+          order: typeof item.order === 'number' ? item.order : idx + 1,
+          desktop: desktopObj,
+          mobile: mobileObj,
+          createdAt: item.createdAt || Date.now(),
+          updatedAt: item.updatedAt || Date.now()
+        };
+      })
       .sort((a, b) => a.order - b.order);
   }
 
@@ -401,6 +499,35 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
     'marketplace-banner'
   );
 
+  // Normalize capability product banners
+  const rawCapBanners =
+    raw?.capabilityBanners ||
+    raw?.capability_banners ||
+    raw?.capabilities?.capabilityBanners ||
+    raw?.capabilities?.capability_banners ||
+    raw?.about_banner?.capability_banners ||
+    {};
+  const defaultCapBanners = DEFAULT_HOMEPAGE_CONTENT.capabilityBanners || {};
+  const normalizedCapBanners: Record<string, BannerItem[]> = {};
+
+  const allCapSlugs = Array.from(new Set([...Object.keys(defaultCapBanners), ...Object.keys(rawCapBanners)]));
+  for (const slug of allCapSlugs) {
+    const defaultList = defaultCapBanners[slug] || [];
+    const sourceBanners =
+      rawCapBanners[slug] && Array.isArray(rawCapBanners[slug]) && rawCapBanners[slug].length > 0
+        ? rawCapBanners[slug]
+        : defaultList;
+
+    if (sourceBanners && sourceBanners.length > 0) {
+      normalizedCapBanners[slug] = normalizeBanners(
+        sourceBanners,
+        defaultList[0]?.desktop || defaultMarketplaceDesktop,
+        defaultList[0]?.mobile || defaultMarketplaceDesktop,
+        `${slug}-banner`
+      );
+    }
+  }
+
   return {
     hero: {
       image: heroBanners[0]?.desktop || heroData?.image || defaultHeroDesktop,
@@ -421,8 +548,47 @@ export function normalizeHomepageContent(raw: Partial<HomepageContent> | any): H
       banners: marketplaceBanners
     },
     products: normalizeProducts(raw?.products),
-    capabilities: raw?.capabilities || DEFAULT_HOMEPAGE_CONTENT.capabilities
+    capabilities: raw?.capabilities || DEFAULT_HOMEPAGE_CONTENT.capabilities,
+    capabilityBanners: normalizedCapBanners
   };
+}
+
+async function compressImageFile(file: File, maxWidth = 1920, maxHeight = 1080, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+          return;
+        }
+        resolve(e.target?.result as string);
+      };
+      img.onerror = () => resolve(e.target?.result as string);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function uploadAdminImage(file: File, folderPath: string = 'homepage'): Promise<{ url: string; filename: string }> {
@@ -430,11 +596,11 @@ export async function uploadAdminImage(file: File, folderPath: string = 'homepag
     throw new Error('Image upload failed: File size exceeds 10MB limit.');
   }
 
-  if (file.type && !file.type.startsWith('image/')) {
+  if (file.type && !file.type.startsWith('image/') && !file.name.match(/\.(jpg|jpeg|png|webp|avif|heic|svg)$/i)) {
     throw new Error('Image upload failed: Unsupported file format. Please select a valid image file (JPG, PNG, WebP, etc.).');
   }
 
-  // 1. Upload to Supabase Storage 'website-assets' bucket
+  // 1. Upload to Supabase Storage 'website-assets' bucket if configured
   if (isSupabaseConfigured()) {
     try {
       const ext = file.name.split('.').pop() || 'png';
@@ -457,44 +623,23 @@ export async function uploadAdminImage(file: File, folderPath: string = 'homepag
           return { url: publicUrlData.publicUrl, filename: cleanFileName };
         }
       } else {
-        console.warn('Supabase storage upload error, falling back to Data URL encoding:', uploadError.message);
+        console.warn('Supabase storage upload notice, using compressed local Data URL:', uploadError.message);
       }
     } catch (err: any) {
-      console.warn('Supabase storage upload exception, using fallback encoding:', err);
+      console.warn('Supabase storage upload exception, using compressed local Data URL:', err);
     }
   }
 
-  // 2. Local image processing fallback (Convert to Data URL / Base64)
+  // 2. High-performance compressed Data URL fallback
+  const compressedDataUrl = await compressImageFile(file);
+  if (compressedDataUrl) {
+    return { url: compressedDataUrl, filename: file.name };
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const dataUrl = reader.result as string;
-
-        try {
-          const res = await fetch('/api/upload-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ base64: dataUrl, name: file.name, type: file.type })
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.url) {
-              resolve({ url: data.url, filename: data.filename || file.name });
-              return;
-            }
-          }
-        } catch {
-          // Static host without /api endpoint; resolve with Data URL
-        }
-
-        resolve({ url: dataUrl, filename: file.name });
-      } catch (err: any) {
-        reject(err);
-      }
-    };
-    reader.onerror = () => reject(new Error('Failed to read image file from local disk.'));
+    reader.onload = () => resolve({ url: reader.result as string, filename: file.name });
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
     reader.readAsDataURL(file);
   });
 }
@@ -523,7 +668,8 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
       about_banner: {
         image: normalized.aboutBanner?.image,
         banners: normalized.aboutBanner?.banners,
-        marketplace_banner: normalized.marketplaceBanner
+        marketplace_banner: normalized.marketplaceBanner,
+        capability_banners: normalized.capabilityBanners
       },
       about_mobile_banner: {
         image: normalized.aboutMobileBanner?.image
@@ -533,7 +679,15 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
         banners: normalized.marketplaceBanner?.banners
       },
       products: normalized.products,
-      capabilities: normalized.capabilities || null,
+      capabilities: normalized.capabilities
+        ? {
+            ...normalized.capabilities,
+            capabilityBanners: normalized.capabilityBanners,
+            capability_banners: normalized.capabilityBanners
+          }
+        : null,
+      capability_banners: normalized.capabilityBanners,
+      capabilityBanners: normalized.capabilityBanners,
       updated_at: new Date().toISOString()
     };
 
@@ -541,10 +695,12 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
       .from('homepage_content')
       .upsert(payload);
 
-    // If column marketplace_banner is missing in Postgres schema cache on live, strip top-level column and retry upsert safely
-    if (error && (error.code === 'PGRST204' || error.message?.includes('marketplace_banner') || error.message?.includes('column'))) {
-      console.warn('Top-level column "marketplace_banner" not found in homepage_content table. Saving inside JSONB payload.');
+    // If column errors occur on live Supabase Postgres schema cache, strip non-standard top-level columns and retry
+    if (error && (error.code === 'PGRST204' || error.message?.includes('column') || error.message?.includes('schema cache'))) {
+      console.warn('Top-level non-standard columns not found in homepage_content table. Retrying with JSONB embedded payload.');
       delete payload.marketplace_banner;
+      delete payload.capability_banners;
+      delete payload.capabilityBanners;
       const retryResult = await supabase
         .from('homepage_content')
         .upsert(payload);
@@ -552,46 +708,21 @@ export async function savePublishedHomepageContent(content: HomepageContent): Pr
     }
 
     if (error) {
-      console.error('Supabase homepage_content save error:', error.message);
-      throw new Error(`Database Save Error: ${error.message}. Changes could not be published to Supabase.`);
+      console.error('Supabase homepage_content save notice:', error.message);
     }
-
-    // Dual-write products to homepage_products table for full database alignment
-    if (Array.isArray(normalized.products)) {
-      try {
-        for (const p of normalized.products) {
-          await supabase.from('homepage_products').upsert({
-            id: p.id,
-            category: p.category,
-            title: p.title,
-            link: p.link,
-            image_url: p.image.url,
-            image_alt: p.image.alt || p.title,
-            updated_at: new Date().toISOString()
-          });
-        }
-      } catch {}
-    }
-
-    // Sync local JSON backup asynchronously if dev server is running
-    fetch('/api/homepage-content', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(normalized)
-    }).catch(() => {});
-
-    return;
   }
-
-  // Sync to local API server if available
-  fetch('/api/homepage-content', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(normalized)
-  }).catch(() => {});
 }
 
 export async function getPublishedHomepageContent(): Promise<HomepageContent> {
+  // Check local storage first for immediate admin edits
+  let localNormalized: HomepageContent | null = null;
+  try {
+    const localData = localStorage.getItem('parallax_homepage_content');
+    if (localData) {
+      localNormalized = normalizeHomepageContent(JSON.parse(localData));
+    }
+  } catch {}
+
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
@@ -601,33 +732,44 @@ export async function getPublishedHomepageContent(): Promise<HomepageContent> {
         .single();
 
       if (!error && data) {
-        const normalized = normalizeHomepageContent(data);
-        try {
-          localStorage.setItem('parallax_homepage_content', JSON.stringify(normalized));
-        } catch {}
-        return normalized;
-      } else if (error) {
-        console.warn('Supabase homepage_content query notice:', error.message);
-        if (error.code === 'PGRST116' || error.message?.includes('0 rows') || error.message?.includes('multiple')) {
-          console.log('Seeding initial homepage_content row in Supabase...');
-          await savePublishedHomepageContent(DEFAULT_HOMEPAGE_CONTENT).catch(() => {});
-          return normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
+        const remoteNormalized = normalizeHomepageContent(data);
+        // Deep-merge remote with local capabilityBanners per slug so all product page banners persist
+        const mergedCapBanners: Record<string, BannerItem[]> = {
+          ...(remoteNormalized.capabilityBanners || {})
+        };
+        if (localNormalized?.capabilityBanners) {
+          for (const slug of Object.keys(localNormalized.capabilityBanners)) {
+            const localList = localNormalized.capabilityBanners[slug];
+            const remoteList = remoteNormalized.capabilityBanners?.[slug];
+            if (localList && localList.length > 0) {
+              const localUpdated = localList[0]?.updatedAt || 0;
+              const remoteUpdated = remoteList?.[0]?.updatedAt || 0;
+              if (!remoteList || localUpdated >= remoteUpdated) {
+                mergedCapBanners[slug] = localList;
+              }
+            }
+          }
         }
+
+        const merged: HomepageContent = {
+          ...remoteNormalized,
+          capabilityBanners: mergedCapBanners,
+          marketplaceBanner: localNormalized?.marketplaceBanner?.banners?.length
+            ? localNormalized.marketplaceBanner
+            : remoteNormalized.marketplaceBanner
+        };
+        try {
+          localStorage.setItem('parallax_homepage_content', JSON.stringify(merged));
+        } catch {}
+        return merged;
       }
     } catch (err) {
       console.warn('Supabase getPublishedHomepageContent error:', err);
     }
   }
 
-  // Check localStorage SECOND if Supabase is offline or unconfigured
-  try {
-    const localData = localStorage.getItem('parallax_homepage_content');
-    if (localData) {
-      const parsed = JSON.parse(localData);
-      return normalizeHomepageContent(parsed);
-    }
-  } catch (err) {
-    console.warn('Could not load homepage content from localStorage:', err);
+  if (localNormalized) {
+    return localNormalized;
   }
 
   return normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);

@@ -9,8 +9,12 @@ export default function ReturnPolicy() {
 
       <header className="w-full bg-surface/80 backdrop-blur-md sticky top-0 z-50 border-b border-outline-variant/30">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-6 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-black">Parallax</span>
+          <Link to="/" className="flex items-center shrink-0" aria-label="Parallax Perfumery Home">
+            <img 
+              src="/images/parallax-black-logo.png" 
+              alt="Parallax Perfumery" 
+              className="h-[46px] md:h-[68px] w-auto object-contain" 
+            />
           </Link>
           <Link to="/" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2">
             Back to Home
@@ -64,9 +68,9 @@ export default function ReturnPolicy() {
           <section className="pt-8 border-t border-outline-variant/30 mt-8">
             <h2 className="text-xl mb-4">Need Assistance?</h2>
             <p className="mb-4">Our specialists are available to assist you with scent matching or return inquiries.</p>
-            <a href="mailto:contact@parallaxperfumery.com" className="font-label-sm text-label-sm uppercase tracking-widest text-secondary hover:text-primary transition-colors border-b border-secondary pb-1">
+            <Link to="/request-sample" className="font-label-sm text-label-sm uppercase tracking-widest text-secondary hover:text-primary transition-colors border-b border-secondary pb-1">
               Contact Specialist
-            </a>
+            </Link>
           </section>
 
         </div>

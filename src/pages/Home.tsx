@@ -481,7 +481,7 @@ export default function Home() {
                           </p>
 
                           <div className="flex items-center gap-4 mt-2">
-                            <button 
+                            <button
                               type="button"
                               onClick={() => {
                                 setSelectedInquiryService(item.title);
@@ -492,24 +492,6 @@ export default function Home() {
                               <span>Doubts? Contact us</span>
                               <span className="material-symbols-outlined text-xs">arrow_forward</span>
                             </button>
-
-                            <div className="flex flex-col gap-1 text-[11px] text-on-surface-variant shrink-0">
-                              <a 
-                                href="mailto:contact@parallaxperfumery.com" 
-                                className="inline-flex items-center gap-1.5 hover:text-primary transition-colors font-medium"
-                              >
-                                <span className="material-symbols-outlined text-sm text-secondary">mail</span>
-                                <span>contact@parallaxperfumery.com</span>
-                              </a>
-
-                              <a 
-                                href="tel:+18005550199" 
-                                className="inline-flex items-center gap-1.5 hover:text-primary transition-colors font-medium"
-                              >
-                                <span className="material-symbols-outlined text-sm text-secondary">call</span>
-                                <span>+1 (800) 555-0199</span>
-                              </a>
-                            </div>
                           </div>
                         </div>
                       </div>

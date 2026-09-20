@@ -4,11 +4,74 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import MotionReveal from '../components/MotionReveal';
 import MarketplaceBanner from '../components/MarketplaceBanner';
-import { CAPABILITY_CATEGORIES } from '../data/capabilities';
+import { CAPABILITY_CATEGORIES, CapabilityCategory } from '../data/capabilities';
 import { fetchFragrances, FragranceItem } from '../services/fragranceService';
 import { getPublishedHomepageContent, HomepageContent } from '../services/homepageContent';
+import ManufactureCard from '../components/ManufactureCard';
+import ManufactureCardSkeleton from '../components/ManufactureCardSkeleton';
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&q=80&w=800";
+
+function CategoryCardImage({ cat, idx }: { cat: CapabilityCategory; idx: number }) {
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  useEffect(() => {
+    if (!cat.images || cat.images.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentIdx((prev) => (prev + 1) % cat.images!.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [cat.images]);
+
+  const hasCarousel = Boolean(cat.images && cat.images.length > 1);
+
+  return (
+    <div className="aspect-[4/3] w-full overflow-hidden bg-black/10 relative">
+      {hasCarousel ? (
+        cat.images!.map((img, i) => (
+          <img
+            key={img}
+            src={img}
+            alt={cat.name}
+            className={`absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-700 block ${
+              i === currentIdx ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
+            }`}
+            onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
+          />
+        ))
+      ) : (
+        <img 
+          src={cat.image} 
+          alt={cat.name} 
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 block"
+          onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80 group-hover:opacity-95 transition-opacity pointer-events-none"></div>
+
+      {/* Subtle Dot Indicators inside image area */}
+      {hasCarousel && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full">
+          {cat.images!.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentIdx(i);
+              }}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === currentIdx ? 'bg-white w-3.5' : 'bg-white/50 hover:bg-white/80 w-1.5'
+              }`}
+              aria-label={`View image ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const CATEGORIES = [
   "Attars",
@@ -146,6 +209,11 @@ export default function Marketplace() {
             cmsContent?.marketplaceBanner?.banners?.[0]?.desktop?.url ||
             cmsContent?.marketplaceBanner?.image?.url
           }
+          mobileImageSrc={
+            cmsContent?.marketplaceBanner?.banners?.[0]?.mobile?.url ||
+            cmsContent?.marketplaceBanner?.banners?.[0]?.desktop?.url ||
+            cmsContent?.marketplaceBanner?.image?.url
+          }
         />
 
         {/* Constrained Page Content Container */}
@@ -217,43 +285,15 @@ export default function Marketplace() {
             <MotionReveal>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
-                  {CAPABILITY_CATEGORIES.map((cat, idx) => (
-                    <Link
-                      key={cat.id}
-                      to={`/capabilities/${cat.slug}`}
-                      className="glass-panel glass-card-hover rounded-xl sm:rounded-2xl overflow-hidden group flex flex-col border border-white/50 hover:border-white shadow-sm transition-all duration-300"
-                    >
-                      {/* Image Frame */}
-                      <div className="aspect-[4/3] w-full overflow-hidden bg-black/10 relative">
-                        <img 
-                          src={cat.image} 
-                          alt={cat.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 block"
-                          onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80 group-hover:opacity-95 transition-opacity"></div>
-                        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-white/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full">
-                          <span className="font-label-sm text-[9px] sm:text-[10px] uppercase tracking-widest text-primary font-bold">
-                            0{idx + 1}
-                          </span>
+                  {loading
+                    ? Array.from({ length: CAPABILITY_CATEGORIES.length }).map((_, idx) => (
+                        <div key={idx} className="w-full h-full min-h-[260px] sm:min-h-[310px]">
+                          <ManufactureCardSkeleton />
                         </div>
-                      </div>
-
-                      {/* Card Info */}
-                      <div className="p-3 sm:p-5 flex flex-col flex-grow bg-white/20">
-                        <h3 className="font-headline-md text-xs sm:text-base text-primary font-bold mb-1 group-hover:text-secondary transition-colors line-clamp-1">
-                          {cat.name}
-                        </h3>
-                        <p className="font-body-md text-[11px] sm:text-xs text-on-surface-variant/80 line-clamp-2 mb-3 sm:mb-4 flex-grow">
-                          {cat.subtitle}
-                        </p>
-                        <div className="pt-2 sm:pt-3 border-t border-outline-variant/30 flex items-center justify-between text-secondary font-label-sm text-[9px] sm:text-[11px] uppercase tracking-widest font-bold group-hover:translate-x-1 transition-transform">
-                          <span>Explore</span>
-                          <span className="material-symbols-outlined text-xs sm:text-sm">arrow_forward</span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
+                      ))
+                    : CAPABILITY_CATEGORIES.map((cat, idx) => (
+                        <ManufactureCard key={cat.id} cat={cat} idx={idx} />
+                      ))}
                 </div>
               </div>
             </MotionReveal>

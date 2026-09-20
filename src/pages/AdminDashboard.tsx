@@ -9,7 +9,9 @@ import {
   BannerItem
 } from '../services/homepageContent';
 import { fetchInquiries, updateInquiryStatus, Inquiry } from '../services/inquiriesService';
+import { fetchAdminSampleRequests, updateSampleRequestStatus, SampleRequestItem } from '../services/sampleRequestService';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { CAPABILITY_CATEGORIES } from '../data/capabilities';
 
 export interface HomepageSectionConfig {
   id: string;
@@ -39,11 +41,19 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
   },
   {
     id: 'marketplace',
-    title: 'Marketplace Banner',
-    shortDesc: 'Manage full-width hero banner imagery for Fragrance & Products Library pages (Required Size: 1900 × 840 px).',
+    title: 'Marketplace Hero Banner',
+    shortDesc: 'Manage desktop (1920 × 800 px) & mobile (535 × 378 px) hero banner imagery for the main /marketplace page.',
     itemCountText: (content) => `${content.marketplaceBanner?.banners?.length || 1} Banners`,
     getThumbnailUrl: (content) => content.marketplaceBanner?.banners?.[0]?.desktop?.url || content.marketplaceBanner?.image?.url || '/images/fragrance-library-banner.png',
     getThumbnailAlt: (content) => content.marketplaceBanner?.banners?.[0]?.desktop?.alt || 'Marketplace Banner',
+  },
+  {
+    id: 'capabilityProducts',
+    title: 'Marketplace Product Banners',
+    shortDesc: 'Manage desktop (1920 × 800 px) & mobile (535 × 378 px) hero banner imagery for individual product pages (/capabilities/attars, /capabilities/deodorants, etc.).',
+    itemCountText: (content) => `${Object.keys(content.capabilityBanners || {}).length || 9} Product Pages`,
+    getThumbnailUrl: (content) => content.capabilityBanners?.['attars']?.[0]?.desktop?.url || '/images/marketplace/attars-1.png',
+    getThumbnailAlt: (content) => 'Marketplace Product Banners',
   },
   {
     id: 'products',
@@ -65,7 +75,7 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
 
 interface BannerListEditorProps {
   sectionTitle: string;
-  sectionKey: 'hero' | 'about' | 'capabilities' | 'marketplace';
+  sectionKey: string;
   banners: BannerItem[];
   recommendedDesktopSpec: string;
   recommendedMobileSpec: string;
@@ -192,7 +202,7 @@ export function BannerListEditor({
       return;
     }
 
-    if (file.type && !file.type.startsWith('image/')) {
+    if (file.type && !file.type.startsWith('image/') && !file.name.match(/\.(jpg|jpeg|png|webp|avif|heic|svg)$/i)) {
       showNotification('error', 'Image upload failed: Unsupported file type. Please select a valid image file (JPG, PNG, WebP, etc.).');
       return;
     }
@@ -309,7 +319,7 @@ export function BannerListEditor({
                   <input
                     type="file"
                     ref={(el) => (fileInputRefs.current[`${item.id}-desktop`] = el)}
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic"
                     className="hidden"
                     onChange={(e) => handleFileChange(item, 'desktop', e)}
                   />
@@ -365,7 +375,7 @@ export function BannerListEditor({
                   <input
                     type="file"
                     ref={(el) => (fileInputRefs.current[`${item.id}-mobile`] = el)}
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic"
                     className="hidden"
                     onChange={(e) => handleFileChange(item, 'mobile', e)}
                   />
@@ -428,7 +438,7 @@ export function BannerListEditor({
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'homepage' | 'video' | 'leads' | 'marketplace'>('homepage');
+  const [activeTab, setActiveTab] = useState<'overview' | 'homepage' | 'video' | 'leads' | 'marketplace' | 'orders'>('orders');
   const [activeHomepageSection, setActiveHomepageSection] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<'hero' | 'about' | 'products' | 'capabilities' | null>('hero');
 
@@ -442,6 +452,13 @@ export default function AdminDashboard() {
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [inquiryFilter, setInquiryFilter] = useState<'all' | 'new' | 'contacted' | 'resolved'>('all');
   const [inquirySearch, setInquirySearch] = useState('');
+
+  // Orders CMS state
+  const [orders, setOrders] = useState<SampleRequestItem[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'new' | 'processing' | 'shipped' | 'completed' | 'cancelled'>('all');
   
   // Video tab state (legacy)
   const [isUploading, setIsUploading] = useState(false);
@@ -452,6 +469,7 @@ export default function AdminDashboard() {
   // Homepage CMS state
   const [cmsContent, setCmsContent] = useState<HomepageContent>(DEFAULT_HOMEPAGE_CONTENT);
   const [isLoadingCms, setIsLoadingCms] = useState(true);
+  const [selectedCapBannerSlug, setSelectedCapBannerSlug] = useState<string>('default');
   
   // Hero CMS editing state
   const heroFileInputRef = useRef<HTMLInputElement>(null);
@@ -489,6 +507,7 @@ export default function AdminDashboard() {
   const [capabilityNewFiles, setCapabilityNewFiles] = useState<{ [key: string]: File | null }>({});
   const [capabilityNewPreviews, setCapabilityNewPreviews] = useState<{ [key: string]: string | null }>({});
   const [publishingCapabilityId, setPublishingCapabilityId] = useState<string | null>(null);
+  const [selectedCapabilitySlug, setSelectedCapabilitySlug] = useState<string>('attars');
 
   // Feedback notifications
   const [statusNotification, setStatusNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -560,7 +579,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadOrders = async () => {
+    setIsLoadingOrders(true);
+    setOrdersError(null);
+    try {
+      const data = await fetchAdminSampleRequests();
+      setOrders(data);
+    } catch (err: any) {
+      console.error('Failed to load orders:', err);
+      setOrdersError(err.message || 'Failed to fetch sample requests.');
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      loadOrders();
+    }
+  }, [activeTab]);
+
   const newInquiriesCount = inquiries.filter(i => i.status === 'new').length;
+  const newOrdersCount = orders.filter(o => o.status === 'new').length;
 
   const handleStatusChange = async (inquiryId: string, newStatus: 'new' | 'contacted' | 'resolved') => {
     try {
@@ -1122,6 +1162,17 @@ export default function AdminDashboard() {
                 <button onClick={() => setActiveTab('video')} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${activeTab === 'video' ? 'bg-white/40 text-primary font-semibold border border-white/50 shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
                   <span className="material-symbols-outlined text-lg">movie</span> Hero Video
                 </button>
+                <button onClick={() => { setActiveTab('orders'); loadOrders(); }} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${activeTab === 'orders' ? 'bg-primary text-white font-semibold shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-lg text-secondary">shopping_cart</span>
+                    <span>Orders</span>
+                  </div>
+                  {newOrdersCount > 0 && (
+                    <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      {newOrdersCount}
+                    </span>
+                  )}
+                </button>
                 <button onClick={() => { setActiveTab('leads'); loadInquiries(); }} className={`font-label-sm text-xs sm:text-sm uppercase tracking-widest p-3 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${activeTab === 'leads' ? 'bg-primary text-white font-semibold shadow-sm' : 'text-on-surface-variant hover:bg-white/20 hover:text-primary'}`}>
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-lg text-secondary">inbox</span>
@@ -1317,7 +1368,7 @@ export default function AdminDashboard() {
                         )}
                       </div>
 
-                      {/* 3. MARKETPLACE BANNER SECTION */}
+                      {/* 3. MARKETPLACE HERO BANNER SECTION */}
                       <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
                         {/* Collapsed/Expanded Row Header */}
                         <div
@@ -1325,8 +1376,7 @@ export default function AdminDashboard() {
                           className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/40 transition-colors bg-white/30"
                         >
                           <div className="flex items-center gap-4 min-w-0 flex-1">
-                            {/* SINGLE FIRST / DESKTOP BANNER THUMBNAIL */}
-                            <div className="w-28 sm:w-40 aspect-[1900/840] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
+                            <div className="w-28 sm:w-40 aspect-[1920/800] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
                               <img 
                                 src={cmsContent.marketplaceBanner?.banners?.[0]?.desktop?.url || cmsContent.marketplaceBanner?.image?.url || '/images/fragrance-library-banner.png'} 
                                 alt="Marketplace Banner Preview" 
@@ -1335,13 +1385,13 @@ export default function AdminDashboard() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">Marketplace Banner</h2>
+                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">Marketplace Hero Banner</h2>
                                 <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-secondary text-white font-bold">
-                                  REQUIRED SIZE: 1900 × 840 PX
+                                  REQUIRED SIZE: 1920 × 800 PX (DESKTOP) / 535 × 378 PX (MOBILE)
                                 </span>
                               </div>
                               <p className="font-body-md text-xs text-on-surface-variant mt-1 truncate">
-                                Full-width hero banner image for Fragrance & Products Library pages
+                                Full-width hero banner imagery for the main /marketplace page
                               </p>
                             </div>
                           </div>
@@ -1360,13 +1410,17 @@ export default function AdminDashboard() {
 
                         {/* Expanded Content Body */}
                         {expandedSection === 'marketplace' && (
-                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-8 bg-white/20 transition-all duration-300">
+                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-6 bg-white/20 transition-all duration-300">
                             <BannerListEditor
-                              sectionTitle="Marketplace Banner"
+                              sectionTitle="Marketplace Hero Banner"
                               sectionKey="marketplace"
-                              banners={cmsContent.marketplaceBanner?.banners || []}
-                              recommendedDesktopSpec="REQUIRED SIZE: 1900 × 840 PX"
-                              recommendedMobileSpec="REQUIRED SIZE: 1900 × 840 PX (OR 535 × 738 PX)"
+                              banners={
+                                cmsContent.marketplaceBanner?.banners?.length
+                                  ? cmsContent.marketplaceBanner.banners
+                                  : DEFAULT_HOMEPAGE_CONTENT.marketplaceBanner?.banners || []
+                              }
+                              recommendedDesktopSpec="REQUIRED SIZE: 1920 × 800 PX"
+                              recommendedMobileSpec="REQUIRED SIZE: 535 × 378 PX"
                               onSaveBanners={async (newBanners) => {
                                 const updatedContent: HomepageContent = {
                                   ...cmsContent,
@@ -1381,6 +1435,138 @@ export default function AdminDashboard() {
                               }}
                               showNotification={showNotification}
                             />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. MARKETPLACE PRODUCT BANNERS (CAPABILITIES / PRODUCTS) SECTION */}
+                      <div className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden transition-all duration-300">
+                        {/* Collapsed/Expanded Row Header */}
+                        <div
+                          onClick={() => setExpandedSection(prev => prev === 'capabilityProducts' ? null : 'capabilityProducts')}
+                          className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/40 transition-colors bg-white/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="w-28 sm:w-40 aspect-[1920/800] rounded-lg overflow-hidden border border-white/70 bg-black/10 shrink-0 shadow-inner relative flex items-center justify-center">
+                              <img 
+                                src={
+                                  cmsContent.capabilityBanners?.[selectedCapabilitySlug]?.[0]?.desktop?.url ||
+                                  cmsContent.capabilityBanners?.['attars']?.[0]?.desktop?.url ||
+                                  '/images/marketplace/attars-1.png'
+                                } 
+                                alt="Marketplace Product Banners Preview" 
+                                className="w-full h-full object-contain block bg-black/5"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="font-headline-md text-lg text-primary font-bold tracking-wide">Marketplace Product Banners</h2>
+                                <span className="font-label-sm text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-secondary text-white font-bold">
+                                  REQUIRED SIZE: 1920 × 800 PX (DESKTOP) / 535 × 378 PX (MOBILE)
+                                </span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant mt-1 truncate">
+                                Manage desktop & mobile hero banner imagery for individual product pages (/capabilities/attars, /capabilities/deodorants, etc.)
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="font-label-sm text-xs font-bold text-primary uppercase tracking-wider hidden sm:inline-block">
+                              {expandedSection === 'capabilityProducts' ? 'Collapse' : 'Expand'}
+                            </span>
+                            <div className="w-8 h-8 rounded-full bg-white/60 border border-white/80 flex items-center justify-center text-primary shadow-sm">
+                              <span className="material-symbols-outlined text-xl transition-transform duration-300 font-bold">
+                                {expandedSection === 'capabilityProducts' ? 'expand_less' : 'expand_more'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded Content Body */}
+                        {expandedSection === 'capabilityProducts' && (
+                          <div className="p-6 sm:p-8 border-t border-outline-variant/30 space-y-6 bg-white/20 transition-all duration-300">
+                            
+                            {/* Specification Alert Box */}
+                            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-1">
+                              <div className="flex items-center gap-2 text-primary font-headline-md text-xs font-bold uppercase tracking-wider">
+                                <span className="material-symbols-outlined text-base">aspect_ratio</span>
+                                <span>Marketplace Product Banner Resolution Specifications</span>
+                              </div>
+                              <p className="font-body-md text-xs text-on-surface-variant leading-relaxed">
+                                • <strong>Desktop Banner Resolution:</strong> 1920 × 800 PX (Aspect Ratio 12:5)<br />
+                                • <strong>Mobile Banner Resolution:</strong> 535 × 378 PX (Aspect Ratio 535:378)
+                              </p>
+                            </div>
+
+                            {/* Sub-Tabs Selector for all 9 Capabilities */}
+                            <div className="space-y-3">
+                              <label className="font-label-sm text-xs font-bold uppercase tracking-widest text-primary block">
+                                Select Product / Capability Page to Edit:
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {CAPABILITY_CATEGORIES.map((cat) => {
+                                  const isSelected = selectedCapabilitySlug === cat.slug;
+                                  return (
+                                    <button
+                                      key={cat.id}
+                                      type="button"
+                                      onClick={() => setSelectedCapabilitySlug(cat.slug)}
+                                      className={`px-3.5 py-2 rounded-xl font-label-sm text-xs uppercase tracking-wider font-bold transition-all duration-200 cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-primary text-white shadow-md scale-105'
+                                          : 'bg-white/60 text-on-surface-variant hover:bg-white hover:text-primary border border-white/80'
+                                      }`}
+                                    >
+                                      {cat.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Active Capability Banner Editor */}
+                            {selectedCapabilitySlug && (
+                              <div className="pt-2">
+                                <BannerListEditor
+                                  sectionTitle={`${CAPABILITY_CATEGORIES.find(c => c.slug === selectedCapabilitySlug)?.name || selectedCapabilitySlug} Banners`}
+                                  sectionKey={`capability-${selectedCapabilitySlug}`}
+                                  banners={
+                                    cmsContent.capabilityBanners?.[selectedCapabilitySlug] && cmsContent.capabilityBanners[selectedCapabilitySlug].length > 0
+                                      ? cmsContent.capabilityBanners[selectedCapabilitySlug]
+                                      : DEFAULT_HOMEPAGE_CONTENT.capabilityBanners?.[selectedCapabilitySlug] || [
+                                          {
+                                            id: `${selectedCapabilitySlug}-banner-1`,
+                                            order: 1,
+                                            desktop: { url: '/images/fragrance-library-banner.png', alt: `${selectedCapabilitySlug} Banner` },
+                                            mobile: { url: '/images/fragrance-library-banner.png', alt: `${selectedCapabilitySlug} Mobile Banner` },
+                                            createdAt: Date.now(),
+                                            updatedAt: Date.now()
+                                          }
+                                        ]
+                                  }
+                                  recommendedDesktopSpec="REQUIRED SIZE: 1920 × 800 PX"
+                                  recommendedMobileSpec="REQUIRED SIZE: 535 × 378 PX"
+                                  onSaveBanners={async (newBanners) => {
+                                    const existingCapBanners = {
+                                      ...(DEFAULT_HOMEPAGE_CONTENT.capabilityBanners || {}),
+                                      ...(cmsContent.capabilityBanners || {})
+                                    };
+                                    const updatedContent: HomepageContent = {
+                                      ...cmsContent,
+                                      capabilityBanners: {
+                                        ...existingCapBanners,
+                                        [selectedCapabilitySlug]: newBanners
+                                      }
+                                    };
+                                    await savePublishedHomepageContent(updatedContent);
+                                    setCmsContent(updatedContent);
+                                  }}
+                                  showNotification={showNotification}
+                                />
+                              </div>
+                            )}
+
                           </div>
                         )}
                       </div>
@@ -1930,6 +2116,360 @@ export default function AdminDashboard() {
                         </button>
                       </div>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ORDERS SECTION */}
+            {activeTab === 'orders' && (
+              <div className="space-y-6 w-full">
+                {/* Header & Controls */}
+                <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="font-headline-md text-2xl text-primary font-bold uppercase tracking-wide flex items-center gap-2">
+                      <span className="material-symbols-outlined text-secondary text-2xl">shopping_cart</span> Sample Orders
+                    </h1>
+                    <p className="font-body-md text-on-surface-variant text-sm mt-1">
+                      Review submitted B2B 10ml fragrance sample requests with complete product and customer specifications.
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 self-start sm:self-auto">
+                    <button
+                      onClick={loadOrders}
+                      disabled={isLoadingOrders}
+                      className="px-4 py-2.5 rounded-xl border border-primary text-primary hover:bg-primary hover:text-white transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <span className={`material-symbols-outlined text-base ${isLoadingOrders ? 'animate-spin' : ''}`}>sync</span>
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="glass-panel p-4 rounded-xl border border-white/50 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    {(['all', 'new', 'processing', 'completed'] as const).map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => setOrderStatusFilter(st)}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-label-sm uppercase tracking-wider font-bold transition-all border cursor-pointer ${
+                          orderStatusFilter === st
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-white/40 text-on-surface-variant border-white/60 hover:bg-white/80'
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative w-full sm:w-72">
+                    <input
+                      type="text"
+                      placeholder="Search company, email, name..."
+                      value={orderSearch}
+                      onChange={(e) => setOrderSearch(e.target.value)}
+                      className="w-full glass-input rounded-lg pl-9 pr-4 py-2 text-xs text-primary bg-white/60 border border-white/80 focus:outline-none focus:border-primary"
+                    />
+                    <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-base">search</span>
+                  </div>
+                </div>
+
+                {/* Orders Content Area */}
+                {isLoadingOrders ? (
+                  <div className="glass-panel p-12 rounded-2xl text-center border border-white/50">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-on-surface-variant text-xs font-bold uppercase tracking-widest">Retrieving Sample Orders...</p>
+                  </div>
+                ) : ordersError ? (
+                  <div className="glass-panel p-8 rounded-2xl border border-rose-300 bg-rose-50/50 text-center text-rose-900">
+                    <span className="material-symbols-outlined text-3xl text-rose-600 mb-2">error</span>
+                    <h3 className="font-bold text-base mb-1">Unable to Load Orders</h3>
+                    <p className="text-xs text-rose-700 mb-4">{ordersError}</p>
+                    <button
+                      onClick={loadOrders}
+                      className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs uppercase tracking-wider hover:bg-rose-700 transition-colors cursor-pointer"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                ) : orders.filter(o => {
+                  const matchStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
+                  const query = orderSearch.toLowerCase();
+                  const matchSearch = !query || 
+                    o.customer_details?.company?.toLowerCase().includes(query) ||
+                    o.customer_details?.firstName?.toLowerCase().includes(query) ||
+                    o.customer_details?.lastName?.toLowerCase().includes(query) ||
+                    o.customer_details?.email?.toLowerCase().includes(query) ||
+                    o.product_details?.step2_category?.toLowerCase().includes(query);
+                  return matchStatus && matchSearch;
+                }).length === 0 ? (
+                  /* PART 20 — Empty state */
+                  <div className="glass-panel p-12 rounded-2xl text-center border border-white/50 border-dashed">
+                    <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-3">inbox</span>
+                    <h3 className="font-headline-md text-lg font-bold text-primary mb-1">No sample requests yet.</h3>
+                    <p className="font-body-md text-xs text-on-surface-variant">
+                      When B2B users request a 10ml fragrance sample, submissions will appear here automatically.
+                    </p>
+                  </div>
+                ) : (
+                  /* PART 17 & PART 18 — Two-Column Orders View on Desktop, Single-Column on Mobile */
+                  <div className="space-y-6">
+                    {orders
+                      .filter(o => {
+                        const matchStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
+                        const query = orderSearch.toLowerCase();
+                        const matchSearch = !query || 
+                          o.customer_details?.company?.toLowerCase().includes(query) ||
+                          o.customer_details?.firstName?.toLowerCase().includes(query) ||
+                          o.customer_details?.lastName?.toLowerCase().includes(query) ||
+                          o.customer_details?.email?.toLowerCase().includes(query) ||
+                          o.product_details?.step2_category?.toLowerCase().includes(query);
+                        return matchStatus && matchSearch;
+                      })
+                      .map((item) => (
+                        <div 
+                          key={item.id}
+                          className="glass-panel rounded-2xl border border-white/60 shadow-[0px_10px_30px_rgba(45,90,97,0.06)] overflow-hidden bg-white/70"
+                        >
+                          {/* Order Header bar */}
+                          <div className="bg-primary/5 p-4 sm:p-5 border-b border-outline-variant/30 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                SR
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs font-bold text-primary">ID: {item.id}</span>
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    {item.status || 'new'}
+                                  </span>
+                                </div>
+                                <span className="font-body-md text-[11px] text-on-surface-variant">
+                                  Submitted on: {new Date(item.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="font-label-sm text-[10px] uppercase font-bold text-on-surface-variant">Status:</span>
+                              <select
+                                value={item.status || 'new'}
+                                onChange={async (e) => {
+                                  const newSt = e.target.value as any;
+                                  try {
+                                    const updated = await updateSampleRequestStatus(item.id, newSt);
+                                    setOrders(prev => prev.map(o => o.id === item.id ? updated : o));
+                                    showNotification('success', `Order status updated to ${newSt.toUpperCase()}`);
+                                  } catch (err: any) {
+                                    showNotification('error', err.message || 'Failed to update order status');
+                                  }
+                                }}
+                                className="glass-input rounded-lg px-2.5 py-1 text-xs font-bold text-primary bg-white border border-outline-variant/50 focus:outline-none cursor-pointer"
+                              >
+                                <option value="new">New</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Two Column Layout: Desktop side-by-side, Mobile stacked */}
+                          <div className="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+                            
+                            {/* Column 1: PRODUCT DETAILS */}
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2 pb-2 border-b border-outline-variant/30">
+                                <span className="material-symbols-outlined text-secondary text-lg">science</span>
+                                <h3 className="font-headline-md text-sm font-bold text-primary uppercase tracking-wider">Product Details</h3>
+                              </div>
+
+                              <div className="bg-white/80 rounded-xl p-4 border border-outline-variant/30 space-y-3 text-xs">
+                                <div>
+                                  <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                    Step 1: Fragrance Direction
+                                  </span>
+                                  <span className="font-body-md font-bold text-primary text-sm">
+                                    {item.product_details?.step1_direction || 'N/A'}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-outline-variant/20">
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Step 2: Category
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.product_details?.step2_category || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Step 3: Scent Family
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.product_details?.step3_family || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {item.product_details?.step3_notes && (
+                                  <div className="pt-2 border-t border-outline-variant/20">
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Key Notes
+                                    </span>
+                                    <span className="font-body-md text-primary font-medium">
+                                      {item.product_details.step3_notes}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-outline-variant/20">
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Step 4: Packaging
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.product_details?.step4_packaging || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Step 5: Estimated MOQ
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.product_details?.step5_quantity || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-outline-variant/20">
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Launch Timeline
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.product_details?.step5_timeline || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Venture Type
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.product_details?.step5_brand_type || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {item.product_details?.step4_details && (
+                                  <div className="pt-2 border-t border-outline-variant/20">
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Packaging Notes
+                                    </span>
+                                    <span className="font-body-md text-on-surface-variant italic">
+                                      "{item.product_details.step4_details}"
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Column 2: CUSTOMER DETAILS */}
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2 pb-2 border-b border-outline-variant/30">
+                                <span className="material-symbols-outlined text-secondary text-lg">person</span>
+                                <h3 className="font-headline-md text-sm font-bold text-primary uppercase tracking-wider">Customer Details</h3>
+                              </div>
+
+                              <div className="bg-white/80 rounded-xl p-4 border border-outline-variant/30 space-y-3 text-xs">
+                                <div>
+                                  <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                    Company / Brand Name
+                                  </span>
+                                  <span className="font-body-md font-bold text-primary text-sm">
+                                    {item.customer_details?.company || 'N/A'}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-outline-variant/20">
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Contact Name
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.customer_details?.firstName} {item.customer_details?.lastName}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Business Type
+                                    </span>
+                                    <span className="font-body-md font-semibold text-primary">
+                                      {item.customer_details?.businessType || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-outline-variant/20">
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Business Email
+                                    </span>
+                                    <a href={`mailto:${item.customer_details?.email}`} className="font-body-md font-semibold text-secondary hover:underline truncate block">
+                                      {item.customer_details?.email}
+                                    </a>
+                                  </div>
+                                  <div>
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Phone Number
+                                    </span>
+                                    <a href={`tel:${item.customer_details?.phone}`} className="font-mono text-xs font-semibold text-secondary hover:underline block">
+                                      {item.customer_details?.phone}
+                                    </a>
+                                  </div>
+                                </div>
+
+                                {item.customer_details?.whatsapp && (
+                                  <div className="pt-2 border-t border-outline-variant/20">
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      WhatsApp Number
+                                    </span>
+                                    <span className="font-mono text-xs text-primary font-semibold">
+                                      {item.customer_details.whatsapp}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div className="pt-2 border-t border-outline-variant/20">
+                                  <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                    Delivery Address
+                                  </span>
+                                  <p className="font-body-md text-primary font-medium">
+                                    {item.customer_details?.address}, {item.customer_details?.city}, {item.customer_details?.zip} ({item.customer_details?.country})
+                                  </p>
+                                </div>
+
+                                {item.customer_details?.notes && (
+                                  <div className="pt-2 border-t border-outline-variant/20">
+                                    <span className="font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant font-bold block mb-0.5">
+                                      Additional Project Details
+                                    </span>
+                                    <p className="font-body-md text-on-surface-variant italic">
+                                      "{item.customer_details.notes}"
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </div>

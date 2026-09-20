@@ -1,15 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { CAPABILITY_CATEGORIES, OEM_CAPABILITIES, CapabilityCategory } from '../data/capabilities';
 
 type ActiveMenu = 'capabilities' | 'marketplace' | 'journal' | null;
+
+type MobileScreenLevel = 'root' | 'capabilities' | 'manufacture' | 'oem' | 'marketplace' | 'journal';
+
+interface MobileScreen {
+  level: MobileScreenLevel;
+  title: string;
+}
+
+const slideVariants = {
+  enter: (direction: 'forward' | 'backward') => ({
+    x: direction === 'forward' ? '100%' : '-100%',
+    opacity: 0,
+  }),
+  center: {
+    x: '0%',
+    opacity: 1,
+  },
+  exit: (direction: 'forward' | 'backward') => ({
+    x: direction === 'forward' ? '-100%' : '100%',
+    opacity: 0,
+  }),
+};
 
 export default function Navbar() {
   const location = useLocation();
   const pathname = location.pathname;
   const search = location.search;
 
-  // Single Shared Mega-Menu Shell State
+  // Single Shared Mega-Menu Shell State (Desktop)
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
   const [displayedMenu, setDisplayedMenu] = useState<ActiveMenu>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -18,12 +41,10 @@ export default function Navbar() {
   // Hover timeout ref for smooth hover bridge & intent
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Mobile Navigation Drawer States
+  // Mobile Navigation Drawer Stack & Transition State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileOemOpen, setMobileOemOpen] = useState(false);
-  const [mobileFormatsOpen, setMobileFormatsOpen] = useState(false);
-  const [mobileMarketplaceOpen, setMobileMarketplaceOpen] = useState(false);
-  const [mobileJournalOpen, setMobileJournalOpen] = useState(false);
+  const [menuStack, setMenuStack] = useState<MobileScreen[]>([{ level: 'root', title: '' }]);
+  const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
 
   // Prevent background scroll while mobile menu drawer is open
   useEffect(() => {
@@ -36,6 +57,45 @@ export default function Navbar() {
       document.body.style.overflow = '';
     };
   }, [mobileMenuOpen]);
+
+  // Close drawer on ESC key press
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        handleCloseDrawer();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [mobileMenuOpen]);
+
+  const pushScreen = (screen: MobileScreen) => {
+    setSlideDirection('forward');
+    setMenuStack((prev) => [...prev, screen]);
+  };
+
+  const popScreen = () => {
+    if (menuStack.length > 1) {
+      setSlideDirection('backward');
+      setMenuStack((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const handleCloseDrawer = () => {
+    setMobileMenuOpen(false);
+    setTimeout(() => {
+      setMenuStack([{ level: 'root', title: '' }]);
+    }, 300);
+  };
+
+  const handleLinkClick = () => {
+    setMobileMenuOpen(false);
+    setTimeout(() => {
+      setMenuStack([{ level: 'root', title: '' }]);
+    }, 300);
+  };
+
+  const currentScreen = menuStack[menuStack.length - 1] || { level: 'root', title: '' };
 
   // Handle desktop menu hover enter & transition
   const handleMouseEnter = (menu: ActiveMenu) => {
@@ -58,7 +118,7 @@ export default function Navbar() {
     }, 180);
   };
 
-  // Close menu on ESC key press for accessibility
+  // Close desktop menu on ESC key press
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setActiveMenu(null);
@@ -73,17 +133,22 @@ export default function Navbar() {
   const isJournalActive = pathname.startsWith('/blog');
 
   return (
-    <header 
-      className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-container-max rounded-xl z-50 bg-white/40 backdrop-blur-[40px] border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]"
-      onKeyDown={handleKeyDown}
-    >
-      <div className="flex justify-between items-center px-6 md:px-8 py-4 relative">
+    <>
+      <header 
+        className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-container-max rounded-xl z-50 bg-white/40 backdrop-blur-[40px] border border-white/50 shadow-[0px_20px_60px_rgba(45,90,97,0.08)]"
+        onKeyDown={handleKeyDown}
+      >
+      <div className="flex justify-between items-center px-6 md:px-8 py-2 md:py-2.5 relative">
         {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2">
-          <span className="font-headline-md text-headline-md font-medium tracking-tight text-black">Parallax</span>
+        <Link to="/" className="flex items-center shrink-0" aria-label="Parallax Perfumery Home">
+          <img 
+            src="/images/parallax-black-logo.png" 
+            alt="Parallax Perfumery" 
+            className="h-[46px] sm:h-[58px] md:h-[70px] lg:h-[78px] w-auto object-contain transition-transform duration-200 hover:scale-[1.02]" 
+          />
         </Link>
 
-        {/* Desktop Navigation */}
+        {/* Desktop Navigation (UNTOUCHED) */}
         <nav 
           className="hidden md:flex items-center gap-8"
           onMouseLeave={handleMouseLeave}
@@ -167,7 +232,7 @@ export default function Navbar() {
 
         </nav>
 
-        {/* SINGLE SHARED REUSABLE MEGA-MENU CONTAINER */}
+        {/* SINGLE SHARED REUSABLE MEGA-MENU CONTAINER (DESKTOP) */}
         <div 
           onMouseEnter={() => {
             if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
@@ -385,258 +450,300 @@ export default function Navbar() {
 
           {/* Mobile Hamburger Toggle Button */}
           <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
-            className="md:hidden text-primary p-2 focus:outline-none rounded-lg active:bg-black/5"
-            aria-label="Toggle Navigation Menu"
+            onClick={() => setMobileMenuOpen(true)} 
+            className="md:hidden text-primary p-2 focus:outline-none rounded-lg active:bg-black/5 cursor-pointer"
+            aria-label="Open Navigation Menu"
             aria-expanded={mobileMenuOpen}
           >
-            <span className="material-symbols-outlined text-2xl">
-              {mobileMenuOpen ? 'close' : 'menu'}
-            </span>
+            <span className="material-symbols-outlined text-2xl">menu</span>
           </button>
         </div>
       </div>
-
-      {/* FULL-SCREEN PREMIUM MOBILE NAVIGATION DRAWER */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 top-0 left-0 w-full h-full min-h-screen bg-[#faf8f5] z-[100] flex flex-col md:hidden text-[#0e3237] animate-fade-in">
-          
-          {/* Mobile Header Bar inside Drawer */}
-          <div className="flex justify-between items-center px-6 py-5 border-b border-[#0e3237]/10 bg-[#faf8f5]/90 backdrop-blur-md shrink-0">
-            <Link 
-              to="/" 
-              onClick={() => setMobileMenuOpen(false)} 
-              className="font-headline-md text-2xl font-semibold tracking-tight text-[#0e3237]"
-            >
-              Parallax
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link 
-                to="/profile" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-[#0e3237] p-2 rounded-full hover:bg-black/5" 
-                aria-label="Account profile"
-              >
-                <span className="material-symbols-outlined text-xl">person</span>
-              </Link>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-[#0e3237] p-2 rounded-full hover:bg-black/5 focus:outline-none"
-                aria-label="Close menu"
-              >
-                <span className="material-symbols-outlined text-2xl">close</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Scrollable Navigation Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-            
-            {/* CAPABILITIES SECTION */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[#0e3237]/15">
-                <span className="font-headline-md text-lg font-bold tracking-tight text-primary">
-                  CAPABILITIES
-                </span>
-              </div>
-
-              {/* 1. KNOW US (Expanded by Default) */}
-              <div className="pl-2 space-y-2">
-                <span className="font-label-sm text-[11px] uppercase tracking-widest text-[#0e3237]/70 font-semibold block mb-2">
-                  KNOW US
-                </span>
-                <div className="space-y-1.5">
-                  <Link
-                    to="/about"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-sm font-medium text-[#0e3237]/90 hover:text-secondary py-1 transition-colors"
-                  >
-                    About Us
-                  </Link>
-                  <Link
-                    to="/about#faqs"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-sm font-medium text-[#0e3237]/90 hover:text-secondary py-1 transition-colors"
-                  >
-                    FAQs
-                  </Link>
-                  <Link
-                    to="/about#clients"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-sm font-medium text-[#0e3237]/90 hover:text-secondary py-1 transition-colors"
-                  >
-                    Clients
-                  </Link>
-                </div>
-              </div>
-
-              <div className="w-full h-px bg-[#0e3237]/10 my-3"></div>
-
-              {/* 2. OEM MANUFACTURING (Accordion) */}
-              <div className="pl-2">
-                <button
-                  type="button"
-                  onClick={() => setMobileOemOpen(!mobileOemOpen)}
-                  aria-expanded={mobileOemOpen}
-                  aria-controls="mobile-oem-list"
-                  className="w-full flex items-center justify-between py-2 text-left focus:outline-none cursor-pointer"
-                >
-                  <span className="font-label-sm text-[11px] uppercase tracking-widest text-[#0e3237]/70 font-semibold">
-                    OEM MANUFACTURING
-                  </span>
-                  <span className="text-base font-bold text-secondary w-5 h-5 flex items-center justify-center">
-                    {mobileOemOpen ? '−' : '+'}
-                  </span>
-                </button>
-
-                <div 
-                  id="mobile-oem-list"
-                  className={`overflow-hidden transition-all duration-200 ease-out ${
-                    mobileOemOpen ? 'max-h-[300px] opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
-                  }`}
-                >
-                  <div className="space-y-2 py-1 pl-1">
-                    {OEM_CAPABILITIES.map((oem) => (
-                      <Link
-                        key={oem.id}
-                        to={oem.link}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="block text-sm font-medium text-[#0e3237]/85 hover:text-primary py-1 transition-colors"
-                      >
-                        {oem.title}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="w-full h-px bg-[#0e3237]/10 my-3"></div>
-
-              {/* 3. MANUFACTURE YOUR OWN (Accordion with Chevron Arrows) */}
-              <div className="pl-2">
-                <button
-                  type="button"
-                  onClick={() => setMobileFormatsOpen(!mobileFormatsOpen)}
-                  aria-expanded={mobileFormatsOpen}
-                  aria-controls="mobile-formats-list"
-                  className="w-full flex items-center justify-between py-2 text-left focus:outline-none cursor-pointer"
-                >
-                  <span className="font-label-sm text-[11px] uppercase tracking-widest text-[#0e3237]/70 font-semibold">
-                    MANUFACTURE YOUR OWN
-                  </span>
-                  <span className="text-base font-bold text-secondary w-5 h-5 flex items-center justify-center">
-                    {mobileFormatsOpen ? '−' : '+'}
-                  </span>
-                </button>
-
-                <div 
-                  id="mobile-formats-list"
-                  className={`overflow-hidden transition-all duration-200 ease-out ${
-                    mobileFormatsOpen ? 'max-h-[500px] opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
-                  }`}
-                >
-                  <div className="space-y-1 py-1 pl-1">
-                    {CAPABILITY_CATEGORIES.map((cat) => (
-                      <Link
-                        key={cat.id}
-                        to={`/capabilities/${cat.slug}`}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-between py-2 text-sm font-medium text-[#0e3237]/85 hover:text-primary transition-colors border-b border-[#0e3237]/5 last:border-0"
-                      >
-                        <span>{cat.name}</span>
-                        <span className="material-symbols-outlined text-xs text-secondary">arrow_forward</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            <div className="w-full h-px bg-[#0e3237]/15 my-6"></div>
-
-            {/* MARKETPLACE SECTION */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setMobileMarketplaceOpen(!mobileMarketplaceOpen)}
-                className="w-full flex items-center justify-between py-2 text-left focus:outline-none font-headline-md text-base font-bold tracking-tight text-primary cursor-pointer"
-              >
-                <span>MARKETPLACE</span>
-                <span className="material-symbols-outlined text-sm text-secondary">
-                  {mobileMarketplaceOpen ? 'expand_less' : 'expand_more'}
-                </span>
-              </button>
-
-              {mobileMarketplaceOpen && (
-                <div className="pl-4 space-y-2 py-2 border-l-2 border-primary/20">
-                  <Link
-                    to="/marketplace?view=manufacture"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-sm font-medium text-[#0e3237]/85 hover:text-primary py-1"
-                  >
-                    Products library
-                  </Link>
-                  <Link
-                    to="/marketplace?view=fragrances"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-sm font-medium text-[#0e3237]/85 hover:text-primary py-1"
-                  >
-                    Fragrance Library
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            <div className="w-full h-px bg-[#0e3237]/10 my-4"></div>
-
-            {/* BUILD A SAMPLE */}
-            <Link
-              to="/build-sample"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 font-headline-md text-base font-bold tracking-tight text-primary hover:text-secondary transition-colors"
-            >
-              BUILD A SAMPLE
-            </Link>
-
-            <div className="w-full h-px bg-[#0e3237]/10 my-4"></div>
-
-            {/* JOURNAL SECTION */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setMobileJournalOpen(!mobileJournalOpen)}
-                className="w-full flex items-center justify-between py-2 text-left focus:outline-none font-headline-md text-base font-bold tracking-tight text-primary cursor-pointer"
-              >
-                <span>JOURNAL</span>
-                <span className="material-symbols-outlined text-sm text-secondary">
-                  {mobileJournalOpen ? 'expand_less' : 'expand_more'}
-                </span>
-              </button>
-
-              {mobileJournalOpen && (
-                <div className="pl-4 space-y-2 py-2 border-l-2 border-primary/20">
-                  <Link
-                    to="/blog"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-sm font-medium text-[#0e3237]/85 hover:text-primary py-1"
-                  >
-                    All Journal Articles
-                  </Link>
-                  <Link
-                    to="/blog"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-sm font-medium text-[#0e3237]/85 hover:text-primary py-1"
-                  >
-                    Industry Insights
-                  </Link>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
     </header>
+
+    {/* RESTRUCTURED SMOOTH LAYERED MOBILE NAVIGATION DRAWER */}
+    <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            {/* Subtle Backdrop Overlay */}
+            <motion.div
+              key="mobile-drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={handleCloseDrawer}
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[99] md:hidden"
+              aria-hidden="true"
+            />
+
+            {/* Premium Sliding Navigation Drawer Panel */}
+            <motion.div
+              key="mobile-drawer-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 0.8 }}
+              className="fixed top-0 right-0 h-full w-[88vw] max-w-[380px] sm:max-w-[400px] bg-[#faf8f5] z-[100] md:hidden shadow-[0px_0px_50px_rgba(14,50,55,0.2)] flex flex-col font-body-md text-[#0e3237] border-l border-[#0e3237]/10 overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile Navigation"
+            >
+              {/* Drawer Header Bar */}
+              <div className="flex items-center justify-between px-6 py-4.5 border-b border-[#0e3237]/10 bg-[#faf8f5]/95 backdrop-blur-md shrink-0 min-h-[64px]">
+                {menuStack.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={popScreen}
+                    className="flex items-center gap-2 text-[#0e3237] font-headline-md text-xs sm:text-sm font-bold tracking-wider hover:text-secondary transition-colors cursor-pointer py-1.5 focus:outline-none"
+                    aria-label="Back to previous menu"
+                  >
+                    <span className="material-symbols-outlined text-lg">arrow_back</span>
+                    <span className="truncate max-w-[200px] uppercase">{currentScreen.title}</span>
+                  </button>
+                ) : (
+                  <Link
+                    to="/"
+                    onClick={handleLinkClick}
+                    className="flex items-center shrink-0"
+                    aria-label="Parallax Perfumery Home"
+                  >
+                    <img
+                      src="/images/parallax-black-logo.png"
+                      alt="Parallax Perfumery"
+                      className="h-[36px] sm:h-[42px] w-auto object-contain"
+                    />
+                  </Link>
+                )}
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Link
+                    to="/profile"
+                    onClick={handleLinkClick}
+                    className="text-[#0e3237] p-2 rounded-full hover:bg-[#0e3237]/5 active:scale-95 transition-all"
+                    aria-label="Account Profile"
+                  >
+                    <span className="material-symbols-outlined text-xl">person</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleCloseDrawer}
+                    className="text-[#0e3237] p-2 rounded-full hover:bg-[#0e3237]/5 active:scale-95 focus:outline-none transition-all cursor-pointer"
+                    aria-label="Close menu"
+                  >
+                    <span className="material-symbols-outlined text-2xl">close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Layered Submenu Directional Viewport */}
+              <div className="flex-1 relative overflow-hidden">
+                <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
+                  <motion.div
+                    key={menuStack.length}
+                    custom={slideDirection}
+                    variants={slideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-full h-full overflow-y-auto px-6 py-6 space-y-1.5"
+                  >
+                    {/* LEVEL 0: ROOT MAIN MENU */}
+                    {currentScreen.level === 'root' && (
+                      <div className="space-y-2.5 py-2">
+                        {/* 1. CAPABILITIES */}
+                        <button
+                          type="button"
+                          onClick={() => pushScreen({ level: 'capabilities', title: 'CAPABILITIES' })}
+                          className="w-full min-h-[52px] px-5 py-3.5 rounded-xl bg-white/70 hover:bg-white border border-[#0e3237]/8 flex items-center justify-between font-headline-md text-base font-bold tracking-wider text-primary shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                        >
+                          <span>CAPABILITIES</span>
+                          <span className="material-symbols-outlined text-xl text-secondary">chevron_right</span>
+                        </button>
+
+                        {/* 2. MARKETPLACE */}
+                        <button
+                          type="button"
+                          onClick={() => pushScreen({ level: 'marketplace', title: 'MARKETPLACE' })}
+                          className="w-full min-h-[52px] px-5 py-3.5 rounded-xl bg-white/70 hover:bg-white border border-[#0e3237]/8 flex items-center justify-between font-headline-md text-base font-bold tracking-wider text-primary shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                        >
+                          <span>MARKETPLACE</span>
+                          <span className="material-symbols-outlined text-xl text-secondary">chevron_right</span>
+                        </button>
+
+                        {/* 3. BUILD A SAMPLE (DIRECT LINK) */}
+                        <Link
+                          to="/build-sample"
+                          onClick={handleLinkClick}
+                          className="w-full min-h-[52px] px-5 py-3.5 rounded-xl bg-white/70 hover:bg-white border border-[#0e3237]/8 flex items-center justify-between font-headline-md text-base font-bold tracking-wider text-primary shadow-xs transition-all active:scale-[0.99]"
+                        >
+                          <span>BUILD A SAMPLE</span>
+                          <span className="material-symbols-outlined text-lg text-primary/40">open_in_new</span>
+                        </Link>
+
+                        {/* 4. JOURNAL */}
+                        <button
+                          type="button"
+                          onClick={() => pushScreen({ level: 'journal', title: 'JOURNAL' })}
+                          className="w-full min-h-[52px] px-5 py-3.5 rounded-xl bg-white/70 hover:bg-white border border-[#0e3237]/8 flex items-center justify-between font-headline-md text-base font-bold tracking-wider text-primary shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                        >
+                          <span>JOURNAL</span>
+                          <span className="material-symbols-outlined text-xl text-secondary">chevron_right</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* LEVEL 1: CAPABILITIES SUBMENU */}
+                    {currentScreen.level === 'capabilities' && (
+                      <div className="space-y-2.5 py-2">
+                        <button
+                          type="button"
+                          onClick={() => pushScreen({ level: 'oem', title: 'OEM MANUFACTURING' })}
+                          className="w-full min-h-[50px] px-5 py-3.5 rounded-xl bg-white/70 hover:bg-white border border-[#0e3237]/8 flex items-center justify-between font-headline-md text-sm font-bold tracking-wider text-primary shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                        >
+                          <span>OEM MANUFACTURING</span>
+                          <span className="material-symbols-outlined text-xl text-secondary">chevron_right</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => pushScreen({ level: 'manufacture', title: 'MANUFACTURE YOUR OWN' })}
+                          className="w-full min-h-[50px] px-5 py-3.5 rounded-xl bg-white/70 hover:bg-white border border-[#0e3237]/8 flex items-center justify-between font-headline-md text-sm font-bold tracking-wider text-primary shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                        >
+                          <span>MANUFACTURE YOUR OWN</span>
+                          <span className="material-symbols-outlined text-xl text-secondary">chevron_right</span>
+                        </button>
+
+                        <div className="pt-3">
+                          <Link
+                            to="/about"
+                            onClick={handleLinkClick}
+                            className="w-full min-h-[46px] px-5 py-3 rounded-xl bg-primary/5 hover:bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-wider text-primary flex items-center justify-between transition-colors"
+                          >
+                            <span>Explore Capabilities Overview</span>
+                            <span className="material-symbols-outlined text-base">arrow_forward</span>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LEVEL 2: MANUFACTURE YOUR OWN (INDIVIDUAL PRODUCT OPTIONS) */}
+                    {currentScreen.level === 'manufacture' && (
+                      <div className="space-y-1.5 py-1">
+                        <span className="font-label-sm text-[11px] uppercase tracking-widest text-[#0e3237]/60 font-bold block mb-2 px-1">
+                          PRODUCT CATEGORIES
+                        </span>
+                        {CAPABILITY_CATEGORIES.map((cat) => (
+                          <Link
+                            key={cat.id}
+                            to={`/capabilities/${cat.slug}`}
+                            onClick={handleLinkClick}
+                            className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all active:scale-[0.99]"
+                          >
+                            <span>{cat.name}</span>
+                            <span className="material-symbols-outlined text-sm text-secondary">arrow_forward</span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* LEVEL 2: OEM MANUFACTURING */}
+                    {currentScreen.level === 'oem' && (
+                      <div className="space-y-1.5 py-1">
+                        <span className="font-label-sm text-[11px] uppercase tracking-widest text-[#0e3237]/60 font-bold block mb-2 px-1">
+                          OEM SERVICES
+                        </span>
+                        {OEM_CAPABILITIES.map((oem) => (
+                          <Link
+                            key={oem.id}
+                            to={oem.link}
+                            onClick={handleLinkClick}
+                            className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all active:scale-[0.99]"
+                          >
+                            <span>{oem.title}</span>
+                            <span className="material-symbols-outlined text-sm text-secondary">arrow_forward</span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* LEVEL 1: MARKETPLACE */}
+                    {currentScreen.level === 'marketplace' && (
+                      <div className="space-y-1.5 py-1">
+                        <span className="font-label-sm text-[11px] uppercase tracking-widest text-[#0e3237]/60 font-bold block mb-2 px-1">
+                          PRODUCT LIBRARIES
+                        </span>
+                        <Link
+                          to="/marketplace?view=manufacture"
+                          onClick={handleLinkClick}
+                          className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all"
+                        >
+                          <span>Products Library</span>
+                          <span className="material-symbols-outlined text-sm text-secondary">grid_view</span>
+                        </Link>
+                        <Link
+                          to="/marketplace?view=fragrances"
+                          onClick={handleLinkClick}
+                          className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all"
+                        >
+                          <span>Fragrance Library</span>
+                          <span className="material-symbols-outlined text-sm text-secondary">science</span>
+                        </Link>
+                        <Link
+                          to="/marketplace"
+                          onClick={handleLinkClick}
+                          className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all"
+                        >
+                          <span>All Marketplace Products</span>
+                          <span className="material-symbols-outlined text-sm text-secondary">arrow_forward</span>
+                        </Link>
+                      </div>
+                    )}
+
+                    {/* LEVEL 1: JOURNAL */}
+                    {currentScreen.level === 'journal' && (
+                      <div className="space-y-1.5 py-1">
+                        <span className="font-label-sm text-[11px] uppercase tracking-widest text-[#0e3237]/60 font-bold block mb-2 px-1">
+                          INSIGHTS & REGULATORY
+                        </span>
+                        <Link
+                          to="/blog"
+                          onClick={handleLinkClick}
+                          className="block px-4 py-3 min-h-[46px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all"
+                        >
+                          All Journal Articles
+                        </Link>
+                        <Link
+                          to="/blog"
+                          onClick={handleLinkClick}
+                          className="block px-4 py-3 min-h-[46px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all"
+                        >
+                          Market Trends & Minimalist Scents
+                        </Link>
+                        <Link
+                          to="/blog"
+                          onClick={handleLinkClick}
+                          className="block px-4 py-3 min-h-[46px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all"
+                        >
+                          IFRA Regulation & Compliance
+                        </Link>
+                        <Link
+                          to="/blog"
+                          onClick={handleLinkClick}
+                          className="block px-4 py-3 min-h-[46px] rounded-xl bg-white/60 hover:bg-white border border-[#0e3237]/5 text-sm font-semibold text-[#0e3237]/90 hover:text-primary transition-all"
+                        >
+                          Packaging Economics & MOQs
+                        </Link>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

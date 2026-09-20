@@ -203,3 +203,80 @@ DROP POLICY IF EXISTS "Admin delete website-assets" ON storage.objects;
 CREATE POLICY "Admin delete website-assets" 
   ON storage.objects FOR DELETE 
   USING (bucket_id = 'website-assets');
+
+-- ==============================================================================
+-- SAMPLE REQUESTS / ORDERS TABLE & RLS SECURITY
+-- ==============================================================================
+
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS public.sample_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  customer_details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'processing', 'shipped', 'completed', 'cancelled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.set_sample_request_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.created_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_set_sample_request_timestamp ON public.sample_requests;
+CREATE TRIGGER trigger_set_sample_request_timestamp
+  BEFORE INSERT ON public.sample_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_sample_request_timestamp();
+
+CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON public.sample_requests(status);
+CREATE INDEX IF NOT EXISTS idx_sample_requests_created_at ON public.sample_requests(created_at DESC);
+
+ALTER TABLE public.sample_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public insert sample_requests" ON public.sample_requests;
+CREATE POLICY "Public insert sample_requests" 
+  ON public.sample_requests FOR INSERT 
+  WITH CHECK (
+    status = 'new' AND
+    product_details IS NOT NULL AND
+    customer_details IS NOT NULL AND
+    (customer_details->>'email') IS NOT NULL AND
+    length(customer_details->>'email') > 3
+  );
+
+DROP POLICY IF EXISTS "Admins select sample_requests" ON public.sample_requests;
+CREATE POLICY "Admins select sample_requests" 
+  ON public.sample_requests FOR SELECT 
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.admin_users
+      WHERE id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Admins update sample_requests" ON public.sample_requests;
+CREATE POLICY "Admins update sample_requests" 
+  ON public.sample_requests FOR UPDATE 
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.admin_users
+      WHERE id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Admins delete sample_requests" ON public.sample_requests;
+CREATE POLICY "Admins delete sample_requests" 
+  ON public.sample_requests FOR DELETE 
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.admin_users
+      WHERE id = auth.uid()
+    )
+  );
+
+COMMIT;
+

@@ -79,7 +79,7 @@ export default function Blog() {
           <nav className="flex flex-wrap justify-center gap-6 mb-4 md:mb-0">
             <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/about">Manufacturing Quality</Link>
             <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/blog">Industry Insights</Link>
-            <a className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" href="mailto:contact@parallaxperfumery.com">Contact Specialist</a>
+            <Link className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary transition-colors duration-300 uppercase tracking-widest cursor-pointer" to="/request-sample">Contact Specialist</Link>
           </nav>
           <div className="font-body-md text-body-md text-on-surface-variant text-sm">
             © 2024 Parallax Perfumery.

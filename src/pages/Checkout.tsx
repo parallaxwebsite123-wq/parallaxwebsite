@@ -8,8 +8,12 @@ export default function Checkout() {
 
       <header className="w-full border-b border-outline-variant/30 bg-surface-bright/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-6 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-headline-md text-headline-md font-medium tracking-tight text-black">Parallax</span>
+          <Link to="/" className="flex items-center shrink-0" aria-label="Parallax Perfumery Home">
+            <img 
+              src="/images/parallax-black-logo.png" 
+              alt="Parallax Perfumery" 
+              className="h-[46px] md:h-[68px] w-auto object-contain" 
+            />
           </Link>
           <div className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">lock</span> Secure Checkout

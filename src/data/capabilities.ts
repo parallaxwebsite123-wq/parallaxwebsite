@@ -5,6 +5,7 @@ export interface CapabilityCategory {
   subtitle: string;
   description: string;
   image: string;
+  images?: string[];
   bottleImage?: string | null;
   features: string[];
 }
@@ -31,7 +32,8 @@ export const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
     name: "Attars",
     subtitle: "Traditional & Concentrated Botanical Oils",
     description: "Pure, alcohol-free fragrance oils crafted using traditional hydro-distillation and contemporary aging techniques for deep, authentic scent profiles.",
-    image: "https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?auto=format&fit=crop&q=80&w=1000",
+    image: "/images/marketplace/attars-1.png",
+    images: ["/images/marketplace/attars-1.png", "/images/marketplace/attars-2.png"],
     bottleImage: "/images/formats/attar no bg.png",
     features: [
       "100% alcohol-free concentrated oil formulations",
@@ -46,7 +48,7 @@ export const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
     name: "Eau de Toilette (EDT)",
     subtitle: "Light & Refreshing Everyday Scents (8–15% Concentration)",
     description: "Vibrant, high-diffusion formulations perfect for casual daily wear, body mists, and summer fragrance collections.",
-    image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&q=80&w=1000",
+    image: "/images/marketplace/edt-3.png",
     bottleImage: "/images/formats/Eau de toilette EDT no BG.png",
     features: [
       "High top-note radiance & instant freshness",
@@ -106,7 +108,7 @@ export const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
     name: "Scented and fragrance candles",
     subtitle: "Artisanal Soy, Beeswax & Paraffin Home Ambiance",
     description: "Premium hand-poured ambient candles engineered with high fragrance load (up to 12%) for intense hot and cold throw.",
-    image: "https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&q=80&w=1000",
+    image: "/images/marketplace/scented-fragrance-candles-6.png",
     bottleImage: "/images/formats/fragrance candles no bg.png",
     features: [
       "100% natural soy, coconut, & botanical wax blends",
@@ -121,8 +123,8 @@ export const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
     name: "Incense products",
     subtitle: "Aromatic Sticks, Masala & Resin Formulations",
     description: "Clean-burning organic incense sticks infused with natural essential oils, resins, and aromatic wood powders.",
-    image: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&q=80&w=1000",
-    bottleImage: "/images/formats/dhoop no bg.png", // Reuses dhoop image as instructed
+    image: "/images/marketplace/incense-products-7.png",
+    bottleImage: "/images/formats/dhoop no bg.png",
     features: [
       "Low-smoke bamboo & natural charcoal core formulations",
       "Pure essential oil dipping & masala paste dipping",
@@ -136,7 +138,7 @@ export const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
     name: "Dhoop / incense cones",
     subtitle: "Backflow & Traditional Solid Incense Formulations",
     description: "Dense, charcoal-free aromatic cones designed for meditation, rituals, and ambient backflow smoke waterfall displays.",
-    image: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=1000",
+    image: "/images/marketplace/dhoop-incense-cones-8.png",
     bottleImage: "/images/formats/dhoop no bg.png",
     features: [
       "Charcoal-free herb, gum resin, and botanical mix",
